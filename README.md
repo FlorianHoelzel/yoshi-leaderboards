@@ -16,6 +16,8 @@ Open http://127.0.0.1:4173. No installation or build step is required.
 
 The GitHub Pages workflow in `.github/workflows/pages.yml` checks, tests, builds, and publishes the prototype on each push to `main`. Enable GitHub Pages with **GitHub Actions** as the source in the repository's Pages settings. Run `npm run build` locally to copy the six public assets into `dist/`.
 
+GitHub Pages is configured for `yoshi.sumof.best`. In the Hetzner DNS zone for `sumof.best`, set a `CNAME` record named `yoshi` to `florianhoelzel.github.io.`. Keep the root domain's records unchanged. After DNS validates and GitHub provisions a certificate, enable **Enforce HTTPS** in the repository's Pages settings. Custom domains for this Actions workflow are configured in Pages settings; no repository `CNAME` file is required.
+
 The existing Sites deployment remains linked through `.openai/hosting.json` and requires a separate Sites publication to update.
 
 Visitors see fictional sample records. Demo submissions, names, and moderation changes are stored in each browser and are not shared between visitors.
