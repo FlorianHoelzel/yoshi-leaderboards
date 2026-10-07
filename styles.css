@@ -121,7 +121,7 @@ html[data-theme="dark"] :is(.category-tabs a.active,.subcategory-tabs a.active){
 .close-button:hover{filter:brightness(.92)}
 .board-header{display:flex;align-items:center;border-bottom:1px solid var(--line);padding-right:22px;gap:12px}
 .board-header .category-tabs{flex:1;min-width:0;border-bottom:0}
-.board-rules{flex:none;padding:7px 10px;border:1px solid var(--green);border-radius:6px;background:var(--soft);color:var(--ink);font-size:14px;font-weight:600}
+.board-rules{flex:none;padding:7px 10px;border:0;border-radius:6px;background:var(--soft);color:var(--ink);font-size:14px;font-weight:600}
 .board-rules:hover{background:var(--green);color:#fff}
 .rules-category{margin-top:0;font-size:18px}
 .category-rules{overflow-wrap:anywhere;font-size:14px}.category-rules h4{margin:18px 0 6px;font-size:14px}.category-rules ul{margin:0;padding-left:20px}.category-rules li+li{margin-top:7px}
