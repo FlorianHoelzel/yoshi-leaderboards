@@ -92,14 +92,7 @@ html[data-theme="dark"] .subcategory-tabs button.active{color:#a6d69b;border-bot
 .level-heading{padding:18px 22px 10px;display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .level-heading h3{font-size:16px;margin:0;overflow-wrap:anywhere}
 .category-nav .individual-level-link{display:block;padding:6px 12px;font-size:11px;font-weight:600}
-.world-nav{padding-left:10px}
-.world-group summary{padding:8px 12px;color:var(--muted);font-size:12px;cursor:pointer;border-radius:7px}
-.world-group summary:hover{background:var(--soft);color:var(--ink)}
-.world-group summary:focus-visible{outline:3px solid #80a982;outline-offset:3px}
-.level-nav{display:grid;padding:3px 0 6px 10px;gap:3px}
-.category-nav .level-nav a{text-align:left;padding:7px 10px;font-size:11px;overflow-wrap:anywhere}
-.category-nav .level-nav a.selected{background:var(--soft)}
-.category-nav .level-nav a.selected:before,.category-nav .individual-level-link.selected:before{display:none}
+.category-nav .individual-level-link.selected:before{display:none}
 html[data-theme="dark"] :is(.category-tabs a.active,.subcategory-tabs a.active){color:#a6d69b;border-bottom-color:#a6d69b}
 @media(max-width:760px){.level-heading{padding:16px 16px 10px}.level-tabs{gap:0 18px}}
 @media(max-width:760px){.category-nav{display:grid;margin-top:14px}.category-nav>.category-group:not(.individual-level-group){display:none}}
