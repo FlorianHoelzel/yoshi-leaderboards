@@ -16,7 +16,7 @@ Open http://127.0.0.1:4173. No installation or build step is required.
 
 - Default frontpage with three rounded boxes: welcome, the five latest verified runs across categories, and a news empty state. Run times open details, runner names open profiles, and category links open their boards.
 - Nine categories grouped as 100% (No Major Glitches, No Restrictions); All Main Stages (Warpless, Warps, Magical Journey); and Any% (Credits Warp, Beat Bowser, No ACE, Reverse Boss Order).
-- Individual levels: 54 stages from [speedrun.com/yi/levels](https://www.speedrun.com/yi/levels), grouped into six worlds with stages 1–8 and an extra stage per world. World, level, and Any% / 100% navigation supports direct links and browser history. Level boards share the submission, verification, profile, filtering, and ranking flow. Level records remain fictional sample data; no live records are imported.
+- Individual levels: 54 stages from [speedrun.com/yi/levels](https://www.speedrun.com/yi/levels), grouped into six worlds with stages 1–8 and an extra stage per world. Individual Levels appears below Any% in the sidebar categories, with expandable world lists containing each level. World, level, and Any% / 100% navigation supports direct links and browser history. Level boards share the submission, verification, profile, filtering, and ranking flow. Level records remain fictional sample data; no live records are imported.
 - Combined SNES and emulator leaderboards, RTA stored as integer milliseconds, and competition ranking (1, 1, 3).
 - Best verified run per runner, region filtering, runner search, profiles, and full verified run history.
 - Run details and draft category rules.
