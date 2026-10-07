@@ -12,8 +12,8 @@ const categories = [
 ];
 const boards=[...categories,...levelBoards];
 const boardHref=board=>board.level?`#levels/${board.world}/${board.level}/${board.mode}`:`#leaderboard/${board.slug}`;
-const categoryGroups=['100%','All Main Stages','Any%'].map(name=>({name,categories:categories.filter(cat=>cat.group===name)}));
-function groupedCategories(renderCategory){return categoryGroups.map(group=>`<div class="category-group" role="group" aria-label="${group.name||'100%'}">${group.name?`<a class="category-group-label ${state.page==='leaderboard'&&currentCategory().group===group.name?'selected':''}" href="#leaderboard/${selectedGroupCategories[group.name]||group.categories[0].slug}">${group.name}</a>`:''}<div class="category-group-items">${group.categories.map(renderCategory).join('')}</div></div>`).join('');}
+const categoryGroups=['All Main Stages','100%','Any%'].map(name=>({name,categories:categories.filter(cat=>cat.group===name)}));
+function groupedCategories(renderCategory,openGroups){return categoryGroups.map(group=>`<details class="category-group" data-group="${group.name}" ${openGroups.has(group.name)?'open':''}><summary class="category-group-label ${state.page==='leaderboard'&&currentCategory().group===group.name?'selected':''}">${group.name}</summary><div class="category-group-items">${group.categories.map(renderCategory).join('')}</div></details>`).join('');}
 function categoryOptions(){return categoryGroups.map(group=>{const options=group.categories.map(cat=>`<option value="${cat.slug}" ${cat.slug===state.category?'selected':''}>${cat.label}</option>`).join('');return group.name?`<optgroup label="${group.name}">${options}</optgroup>`:options;}).join('');}
 const selectedGroupCategories={};
 function categorySelector(cat){
@@ -56,7 +56,7 @@ sampleRuns.push(...levelBoards.flatMap((board,c)=>runners.slice(0,4).map((runner
 const storageKey='yoshi-visual-prototype-v1';
 let saved={runs:[],viewer:''};
 try { const value=JSON.parse(localStorage.getItem(storageKey)); if(value&&Array.isArray(value.runs)){saved.runs=value.runs.filter(r=>r&&typeof r.runner==='string'&&boards.some(c=>c.slug===r.category)&&Number.isSafeInteger(r.timeMs)&&r.timeMs>0&&['pending','verified','rejected'].includes(r.status));saved.viewer=typeof value.viewer==='string'?value.viewer:'';} } catch {}
-let state={page:'home',category:categories[0].slug,level:'1-1',levelCategory:'any',region:'all',search:''};
+let state={page:'leaderboard',category:categoryGroups[0].categories[0].slug,level:'1-1',levelCategory:'any',region:'all',search:''};
 const main=document.querySelector('main');
 const modal=document.querySelector('#modal');
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -74,13 +74,14 @@ function bestRuns(category,region='all'){
 function avatar(name,large=false){const runner=runners.find(r=>r.name===name);return `<span class="avatar${large?' large':''}" style="background:${runner?.color||'#e5edda'}">${escapeHtml(name.slice(0,2).toUpperCase())}</span>`;}
 function profileButton(name){return `<button class="runner-button" data-profile="${escapeHtml(name)}">${avatar(name)}<span>${escapeHtml(name)}<span class="runner-location">${escapeHtml(runners.find(r=>r.name===name)?.country||'Community runner')}</span></span></button>`;}
 function render(){
-  const sectionNames={home:'Frontpage',leaderboard:'Leaderboards',levels:'Individual levels',runners:'Runners',rules:'Rules & resources','my-runs':'My submissions'};
-  const crumbs=[{label:'Yoshi’s Island',href:'#home'},{label:sectionNames[state.page],href:`#${state.page}`}];
+  const sectionNames={leaderboard:'Leaderboards',levels:'Individual levels',runners:'Runners',rules:'Rules & resources','my-runs':'My submissions'};
+  const crumbs=[{label:'Yoshi’s Island',href:'#leaderboard'},{label:sectionNames[state.page],href:`#${state.page}`}];
   if(state.page==='levels'){const level=levels.find(level=>level.slug===state.level);crumbs.push({label:`World ${level.world}`,href:`#levels/${level.world}`},{label:`${level.slug}: ${level.name}`});}
   if(state.page==='leaderboard')crumbs.push({label:currentCategory().name});
   document.querySelector('#breadcrumbs').innerHTML=crumbs.map((crumb,index)=>`<li>${index?'<span class="breadcrumb-separator" aria-hidden="true">/</span>':''}${index===crumbs.length-1?`<strong aria-current="page">${escapeHtml(crumb.label)}</strong>`:`<a href="${crumb.href}">${escapeHtml(crumb.label)}</a>`}</li>`).join('');
-  document.querySelectorAll('[data-page]').forEach(link=>{const active=link.dataset.page===state.page;link.classList.toggle('active',active);active?link.setAttribute('aria-current','page'):link.removeAttribute('aria-current');});
-  document.querySelector('#category-nav').innerHTML=groupedCategories(cat=>`<a href="#leaderboard/${cat.slug}" class="${state.page==='leaderboard'&&state.category===cat.slug?'selected':''}" ${state.page==='leaderboard'&&state.category===cat.slug?'aria-current="page"':''}>${cat.label}</a>`)+levelNavigation();
+  document.querySelectorAll('[data-page]').forEach(link=>{const active=link.dataset.page===state.page||(link.dataset.page==='leaderboard'&&['levels','rules'].includes(state.page));link.classList.toggle('active',active);active?link.setAttribute('aria-current','page'):link.removeAttribute('aria-current');});
+  const openGroups=new Set(Array.from(document.querySelectorAll('#category-nav details[open]'),group=>group.dataset.group));
+  document.querySelector('#category-nav').innerHTML=groupedCategories(cat=>`<a href="#leaderboard/${cat.slug}" class="${state.page==='leaderboard'&&state.category===cat.slug?'selected':''}" ${state.page==='leaderboard'&&state.category===cat.slug?'aria-current="page"':''}>${cat.label}</a>`,openGroups)+levelNavigation(openGroups);
   document.querySelector('#account-button').textContent=saved.viewer?`${saved.viewer} ↗`:'Sign in ↗';
   if(state.page==='home')renderHome();
   else if(state.page==='leaderboard'||state.page==='levels')renderLeaderboard();
@@ -88,22 +89,11 @@ function render(){
   else if(state.page==='rules')renderRules();
   else renderMyRuns();
 }
-function renderHome(){
-  const latest=allRuns().filter(run=>run.status==='verified').sort((a,b)=>b.date.localeCompare(a.date)||(b.submittedAt||'').localeCompare(a.submittedAt||'')||a.id.localeCompare(b.id,undefined,{numeric:true})).slice(0,5);
-  main.innerHTML=`<div class="frontpage-grid">
-    <section class="frontpage-card frontpage-welcome" aria-labelledby="welcome-title"><h1 id="welcome-title">Welcome to the new Yoshi leaderboards</h1></section>
-    <section class="frontpage-card frontpage-runs" aria-labelledby="latest-runs-title">
-      <header class="frontpage-card-header"><h2 id="latest-runs-title">Latest runs</h2></header>
-      ${latest.length?`<ol class="latest-runs">${latest.map(run=>{
-        const cat=boards.find(cat=>cat.slug===run.category);
-        return `<li class="latest-run"><div class="latest-run-heading"><button class="runner-button" data-profile="${escapeHtml(run.runner)}">${avatar(run.runner)}<span>${escapeHtml(run.runner)}</span></button><button class="time-button" data-run="${escapeHtml(run.id)}" aria-label="View ${escapeHtml(run.runner)}'s ${escapeHtml(cat.name)} run, ${formatTime(run.timeMs)}">${formatTime(run.timeMs)}</button></div><a class="latest-run-category" href="${boardHref(cat)}">${escapeHtml(cat.name)}</a><div class="latest-run-meta"><span>${escapeHtml(run.platform)}</span><time datetime="${escapeHtml(run.date)}">${dateLabel(run.date)}</time></div></li>`;
-      }).join('')}</ol>`:'<div class="frontpage-empty"><p>No verified runs yet.</p></div>'}
-    </section>
-    <section class="frontpage-card frontpage-news" aria-labelledby="news-title"><header class="frontpage-card-header"><h2 id="news-title">News</h2></header><div class="frontpage-empty"><p>No news posted yet.</p></div></section>
-  </div>`;
+function levelNavigation(openGroups){
+  return `<details class="category-group individual-level-group" data-group="levels" ${openGroups.has('levels')?'open':''}><summary class="category-group-label ${state.page==='levels'?'selected':''}">Individual Levels</summary><div class="category-group-items"><a href="#levels">All levels</a>${Array.from({length:6},(_,i)=>i+1).map(world=>`<a href="#levels/${world}/${world}-1/${state.levelCategory}">World ${world}</a>`).join('')}</div></details>`;
 }
-function levelNavigation(){
-  return `<div class="category-group individual-level-group"><a class="category-group-label individual-level-link ${state.page==='levels'?'selected':''}" href="#levels" ${state.page==='levels'?'aria-current="page"':''}>Individual Levels</a></div>`;
+function leaderboardNavigation(){
+  return `<nav class="leaderboard-navigation" aria-label="Leaderboard navigation">${[{page:'leaderboard',label:'Full game',href:`#leaderboard/${state.category}`},{page:'levels',label:'Individual levels',href:`#levels/${levels.find(level=>level.slug===state.level).world}/${state.level}/${state.levelCategory}`},{page:'rules',label:'Rules',href:'#rules'}].map(item=>`<a href="${item.href}" class="${state.page===item.page?'active':''}" ${state.page===item.page?'aria-current="page"':''}>${item.label}</a>`).join('')}</nav>`;
 }
 function levelSelector(board){
   const level=levels.find(level=>level.slug===board.level);
@@ -134,7 +124,7 @@ function renderSubmissionBoardFields(){
 function renderLeaderboard(){
   const cat=currentCategory();const board=bestRuns(cat.slug,state.region);const filtered=board.filter(r=>r.runner.toLowerCase().includes(state.search.toLowerCase()));
   const rows=filtered.map(run=>`<tr class="${run.rank===1?'record':''}"><td><span class="rank ${run.rank===1?'first':''}">${run.rank===1?'♛ ':''}${run.rank}</span></td><td>${profileButton(run.runner)}</td><td><button class="time-button" data-run="${run.id}">${formatTime(run.timeMs)}</button></td><td class="platform-col"><span class="platform">${run.platform}</span></td><td class="region-col"><span class="region">${run.region}</span></td><td><span class="run-date">${dateLabel(run.date)}</span></td><td><button class="watch" data-run="${run.id}" aria-label="View ${escapeHtml(run.runner)}’s run">↗</button></td></tr>`).join('');
-  main.innerHTML=`<div class="page-heading"><div><h2>${state.page==='levels'?'Individual levels':'Leaderboards'}</h2></div><button class="button" data-submit><span aria-hidden="true">＋</span> Submit a run</button></div>
+  main.innerHTML=`${leaderboardNavigation()}<div class="page-heading"><div><h2>${state.page==='levels'?'Individual levels':'Leaderboards'}</h2></div><button class="button" data-submit><span aria-hidden="true">＋</span> Submit a run</button></div>
   <div class="layout"><section class="board" aria-label="${cat.name} leaderboard">${state.page==='levels'?levelSelector(cat):categorySelector(cat)}
   <div class="board-toolbar"><div class="filters"><select id="region-filter" class="filter-select" aria-label="Filter by region"><option value="all">All regions</option>${['NTSC-U','NTSC-J','PAL'].map(r=>`<option ${state.region===r?'selected':''}>${r}</option>`).join('')}</select><span class="platform">RTA</span></div><label class="search-wrap"><span aria-hidden="true">⌕</span><input id="runner-search" aria-label="Search runners" placeholder="Find a runner…" value="${escapeHtml(state.search)}"></label></div>
   <div class="table-wrap"><table><thead><tr><th scope="col">RANK</th><th scope="col">RUNNER</th><th scope="col">TIME</th><th scope="col" class="platform-col">PLATFORM</th><th scope="col" class="region-col">REGION</th><th scope="col">DATE</th><th scope="col"><span class="sr-only">Details</span></th></tr></thead><tbody>${rows}</tbody></table>${!filtered.length?'<div class="empty"><h3>No runners found</h3><p>Try another name or region.</p><button class="button secondary" data-clear>Clear filters</button></div>':''}</div>
@@ -146,7 +136,7 @@ function renderLeaderboard(){
   document.querySelector('#runner-search').addEventListener('input',event=>{const position=event.target.selectionStart;state.search=event.target.value;renderLeaderboard();const input=document.querySelector('#runner-search');input.focus();input.setSelectionRange(position,position);});
 }
 function renderRunners(){main.innerHTML=`<div class="page-heading"><div><h2>Runners</h2></div><button class="button" data-submit>Submit a run</button></div><div class="runner-grid">${[...new Set(allRuns().filter(r=>r.status==='verified').map(r=>r.runner))].map(name=>`<button class="runner-card" data-profile="${escapeHtml(name)}">${avatar(name,true)}<span><strong>${escapeHtml(name)}</strong><p>${escapeHtml(runners.find(r=>r.name===name)?.country||'Community runner')}</p><p>${allRuns().filter(r=>r.runner===name&&r.status==='verified').length} verified runs <span aria-hidden="true">↗</span></p></span></button>`).join('')}</div>`;}
-function renderRules(){main.innerHTML=`<div class="page-heading"><div><h2>Rules & resources</h2></div></div><section class="content-card"><div class="notice">Category rules are not configured.</div><h3>Leaderboard conventions</h3><p class="subtext">SNES and emulator runs share a leaderboard. Times use RTA to the millisecond. Equal times share a rank (1, 1, 3). Each board shows one best verified run per runner, with previous runs kept in their history.</p>${categories.map(cat=>`<article class="rule-block" id="rule-${cat.slug}"><h3>${cat.name}</h3><p>Rules pending.</p><button class="text-button" data-category="${cat.slug}">Leaderboard ↗</button></article>`).join('')}</section>`;}
+function renderRules(){main.innerHTML=`${leaderboardNavigation()}<div class="page-heading"><div><h2>Rules & resources</h2></div></div><section class="content-card"><div class="notice">Category rules are not configured.</div><h3>Leaderboard conventions</h3><p class="subtext">SNES and emulator runs share a leaderboard. Times use RTA to the millisecond. Equal times share a rank (1, 1, 3). Each board shows one best verified run per runner, with previous runs kept in their history.</p>${categories.map(cat=>`<article class="rule-block" id="rule-${cat.slug}"><h3>${cat.name}</h3><p>Rules pending.</p><button class="text-button" data-category="${cat.slug}">Leaderboard ↗</button></article>`).join('')}</section>`;}
 function renderMyRuns(){const own=saved.runs.filter(r=>r.runner===saved.viewer).sort((a,b)=>b.submittedAt.localeCompare(a.submittedAt));main.innerHTML=`<div class="page-heading"><div><h2>My submissions</h2></div><button class="button" data-submit>Submit a run</button></div><div class="notice">Demo moderation</div><section class="board">${own.length?`<div class="table-wrap"><table><thead><tr><th>CATEGORY</th><th>TIME</th><th>DATE</th><th>STATUS</th><th>PREVIEW REVIEW</th></tr></thead><tbody>${own.map(r=>`<tr><td>${boards.find(c=>c.slug===r.category).name}</td><td><button class="time-button" data-run="${r.id}">${formatTime(r.timeMs)}</button></td><td class="run-date">${dateLabel(r.date)}</td><td><span class="status ${r.status}">${r.status[0].toUpperCase()+r.status.slice(1)}</span></td><td>${r.status==='pending'?`<button class="text-button" data-verify="${r.id}">Verify</button> · <button class="text-button" data-reject="${r.id}">Reject</button>`:'<span class="subtext">Reviewed</span>'}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty"><h3>No submissions</h3><button class="button" data-submit>Submit a run</button></div>`}</section>`;}
 function openModal(title,body){document.querySelector('#modal-content').innerHTML=`<div class="modal-header"><h2 id="dialog-title">${title}</h2><button class="close-button" data-close aria-label="Close dialog">×</button></div><div class="modal-body">${body}</div>`;if(!modal.open)modal.showModal();}
 function profile(name){const runs=allRuns().filter(r=>r.runner===name&&r.status==='verified');const pbs=boards.map(cat=>({cat,run:bestRuns(cat.slug).find(r=>r.runner===name)})).filter(x=>x.run);openModal('Runner profile',`<div class="profile-heading">${avatar(name,true)}<div><h3>${escapeHtml(name)}</h3><p>${escapeHtml(runners.find(r=>r.name===name)?.country||'Community runner')}</p></div></div><div class="metric-grid"><div class="metric"><strong>${runs.length}</strong>Verified runs</div><div class="metric"><strong>${pbs.length}</strong>Category PBs</div><div class="metric"><strong>${pbs.filter(x=>x.run.rank===1).length}</strong>Category records</div></div><h3>Personal bests</h3><div class="pb-list">${pbs.map(({cat,run})=>`<button class="text-button pb-row" data-run="${run.id}"><span>${cat.name} <small>· #${run.rank}</small></span><strong>${formatTime(run.timeMs)} ↗</strong></button>`).join('')||'<p class="subtext">No verified PBs yet.</p>'}</div><h3>Run history</h3><div class="pb-list">${runs.sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<button class="text-button pb-row" data-run="${r.id}"><span>${dateLabel(r.date)} · ${boards.find(c=>c.slug===r.category).name}</span><strong>${formatTime(r.timeMs)}</strong></button>`).join('')}</div>`);}
@@ -172,7 +162,7 @@ function route(){
   if(location.hash==='#main')return;
   window.scrollTo(0,0);
   const [page,category,levelSlug,mode]=location.hash.slice(1).split('/');
-  state.page=['home','leaderboard','levels','runners','rules','my-runs'].includes(page)?page:'home';
+  state.page=['leaderboard','levels','runners','rules','my-runs'].includes(page)?page:'leaderboard';
   if(state.page==='levels'){
     const world=Number(category);
     const level=levels.find(level=>level.slug===levelSlug&&level.world===world)||levels.find(level=>level.world===world)||levels.find(level=>level.slug===state.level);
