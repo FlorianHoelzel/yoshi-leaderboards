@@ -29,8 +29,8 @@ Visitors see fictional sample records. Demo submissions, names, and moderation c
 - Individual levels: 54 stages from [speedrun.com/yi/levels](https://www.speedrun.com/yi/levels), grouped into six worlds with stages 1–8 and an extra stage per world. Individual Levels appears below Any% in the sidebar categories, with a collapsed world menu. World, level, and Any% / 100% navigation supports direct links and browser history. Level boards share the submission, verification, profile, filtering, and ranking flow. Level records remain fictional sample data; no live records are imported.
 - Combined SNES and emulator leaderboards, RTA stored as integer milliseconds, and competition ranking (1, 1, 3).
 - Best verified run per runner, region filtering, runner search, profiles, and full verified run history.
-- Run details and draft category rules.
-- Submission form with time and video URL validation, local submission history, and demo verification/rejection controls.
+- Run details with embedded YouTube videos and Twitch VODs/clips, plus draft category rules.
+- Submission form with seconds-only time autofill (24.123 → 0:24.123), aligned date/time fields, a themed calendar picker, video URL validation, local submission history, and demo verification/rejection controls.
 - Demo names and submissions persist in browser localStorage.
 - Dark/light mode follows the system preference until selected with the header toggle. The selection persists in browser localStorage.
 

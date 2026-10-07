@@ -14,6 +14,7 @@ function prototype(runs = []) {
     return elements.get(selector);
   };
   const context = vm.createContext({
+    URL, URLSearchParams,
     document: {querySelector: element, querySelectorAll: () => [], addEventListener() {}},
     localStorage: {getItem: () => JSON.stringify({runs, viewer: 'testfern'})},
     location: {hash: '#levels/1/1-1/any'},
@@ -46,6 +47,36 @@ test('all 54 stages have independent Any% and 100% boards and working routes', (
   app.read("location.hash='#leaderboard/warpless';route()");
   assert.equal(app.read('currentCategory().slug'), 'warpless');
   assert.equal(app.read('bestRuns(currentCategory().slug).length'), 12);
+});
+
+test('seconds-only times normalize without rounding or accepting invalid seconds', () => {
+  const app = prototype();
+  for (const [input, expected] of [['24.123',24123],['9.5',9500],['0.001',1],['59.999',59999],['0:24.123',24123],['2:06:31.420',7591420]]) {
+    assert.equal(app.read(`parseTime(${JSON.stringify(input)})`), expected);
+  }
+  assert.equal(app.read("normalizeTime(' 24.123 ')"), '0:24.123');
+  assert.equal(app.read("normalizeTime('9.5')"), '0:09.5');
+  for (const input of ['60.123','24.1234','-1.000','0.000','1:60.000']) {
+    assert.equal(app.read(`parseTime(${JSON.stringify(input)})`), null);
+  }
+});
+
+test('video embeds use recognized recording URLs and the current Twitch parent domain', () => {
+  const app = prototype();
+  for (const value of ['https://www.youtube.com/watch?v=M7lc1UVf-VE','https://youtu.be/M7lc1UVf-VE','https://www.youtube.com/shorts/M7lc1UVf-VE']) {
+    assert.equal(app.read(`videoEmbedUrl(${JSON.stringify(value)},'yoshi.sumof.best')`), 'https://www.youtube-nocookie.com/embed/M7lc1UVf-VE?autoplay=0');
+  }
+  const vod = new URL(app.read("videoEmbedUrl('https://www.twitch.tv/videos/40464143','yoshi.sumof.best')"));
+  assert.equal(vod.hostname, 'player.twitch.tv');
+  assert.equal(vod.searchParams.get('video'), 'v40464143');
+  assert.equal(vod.searchParams.get('parent'), 'yoshi.sumof.best');
+  assert.equal(vod.searchParams.get('autoplay'), 'false');
+  for (const value of ['https://clips.twitch.tv/TestClip','https://www.twitch.tv/runner/clip/TestClip']) {
+    assert.equal(new URL(app.read(`videoEmbedUrl(${JSON.stringify(value)},'yoshi.sumof.best')`)).searchParams.get('clip'), 'TestClip');
+  }
+  for (const value of ['javascript:alert(1)','https://youtube.com.evil.test/watch?v=M7lc1UVf-VE','https://www.youtube.com/','https://www.twitch.tv/runner','http://youtu.be/M7lc1UVf-VE']) {
+    assert.equal(app.read(`videoEmbedUrl(${JSON.stringify(value)},'yoshi.sumof.best')`), null);
+  }
 });
 
 test('level submissions survive reload, stay isolated, and only verified PBs rank', () => {

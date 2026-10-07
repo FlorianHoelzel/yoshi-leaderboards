@@ -90,3 +90,27 @@ html[data-theme="dark"] :is(.category-tabs a.active,.subcategory-tabs a.active){
 .leaderboard-navigation a:hover{color:var(--ink)}
 @media(min-width:761px){.sidebar{width:256px}.workspace{margin-left:256px}}
 @media(max-width:760px){.category-nav{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.category-group-items a{display:block}.category-nav .category-group-items a{padding-left:12px}.leaderboard-navigation{gap:8px 20px}}
+
+/* Keep controls aligned even when a field has supporting text. */
+.field{align-content:start;min-width:0}
+.field input,.field select{height:44px;min-width:0}
+.date-control{display:flex;align-items:center;height:44px;background:var(--surface);border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.date-control input{border:0;background:transparent;flex:1;width:0;min-width:0}
+.date-control input::-webkit-calendar-picker-indicator{display:none}
+.date-control button{flex:none;background:transparent;color:var(--ink);width:40px;height:42px;font-size:20px}
+.date-control:focus-within{outline:3px solid #80a982;outline-offset:3px}
+.date-control input:focus-visible{outline:0}
+.date-calendar{position:fixed;inset:auto;margin:0;width:min(300px,calc(100vw - 16px));max-height:calc(100dvh - 16px);overflow:auto;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);box-shadow:0 12px 40px #0003}
+.calendar-header{display:flex;align-items:center;gap:5px;margin-bottom:14px}
+.calendar-header select{min-width:0;border:0;background:var(--soft);color:var(--ink);border-radius:6px;padding:6px;font-size:13px}
+.calendar-header select:first-of-type{flex:1;width:auto}.calendar-header select:last-of-type{flex:none;width:78px}.calendar-header button{flex:none}
+.calendar-header button,.calendar-days button{background:transparent;color:var(--ink);border-radius:6px;height:34px;min-width:28px}
+.calendar-header button{font-size:22px}
+.calendar-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;text-align:center;font-size:13px}
+.calendar-days span{color:var(--muted);font-size:11px;line-height:30px}
+.calendar-days button:hover,.calendar-header button:hover{background:var(--soft)}
+.calendar-days button[aria-pressed="true"]{background:var(--green);color:white;font-weight:700}
+.calendar-today{display:block;background:var(--soft);color:var(--ink);border-radius:6px;margin-top:12px;padding:7px 12px;width:100%;font-size:13px}
+.run-video{margin:20px 0 8px;background:#000;overflow:hidden;border-radius:9px}
+.run-video iframe{display:block;border:0;width:100%;aspect-ratio:16/9;min-height:300px}
+.video-link{display:inline-block}
