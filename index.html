@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7f2">
+  <title>Yoshi's Island — Community Leaderboards</title>
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <aside class="sidebar">
+    <a href="#leaderboard" class="brand"><span class="egg-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>yoshi<span class="brand-sub">LEADERBOARDS</span></span></a>
+    <div class="sidebar-label">NAVIGATION</div>
+    <nav aria-label="Main navigation">
+      <a href="#leaderboard" data-page="leaderboard"><span aria-hidden="true">▤</span> Leaderboards</a>
+      <a href="#runners" data-page="runners"><span aria-hidden="true">◎</span> Runners</a>
+      <a href="#rules" data-page="rules"><span aria-hidden="true">▧</span> Rules & resources</a>
+      <a href="#my-runs" data-page="my-runs"><span aria-hidden="true">◷</span> My submissions</a>
+    </nav>
+    <div class="sidebar-label category-label">CATEGORIES</div>
+    <div id="category-nav" class="category-nav"></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><nav class="breadcrumb" aria-label="Breadcrumb"><ol id="breadcrumbs"></ol></nav><div class="top-actions"><button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false">Dark mode</button><button class="text-button" id="account-button">Sign in <span aria-hidden="true">↗</span></button></div></header>
+    <main id="main" tabindex="-1"></main>
+    <footer><span>Sample data</span><button class="text-button" id="reset-demo">Reset demo</button></footer>
+  </div>
+  <dialog id="modal" aria-labelledby="dialog-title"><div id="modal-content"></div></dialog>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
