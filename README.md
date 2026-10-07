@@ -31,7 +31,7 @@ Visitors see fictional sample records. Demo submissions, names, and moderation c
 - Best verified run per runner, region filtering, runner search, profiles, and full verified run history.
 - Run details and draft category rules.
 - Submission form with time and video URL validation, local submission history, and demo verification/rejection controls.
-- Demo names and submissions persist in browser localStorage. Use **Reset demo** to clear them.
+- Demo names and submissions persist in browser localStorage.
 - Dark/light mode follows the system preference until selected with the header toggle. The selection persists in browser localStorage.
 
 ## Boundaries

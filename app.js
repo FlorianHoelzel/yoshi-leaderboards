@@ -168,8 +168,6 @@ document.addEventListener('click',event=>{const target=event.target.closest('but
 });
 modal.addEventListener('click',event=>{if(event.target===modal){const rect=modal.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)modal.close();}});
 document.querySelector('#account-button').addEventListener('click',account);
-document.querySelector('#reset-demo').addEventListener('click',()=>openModal('Reset the prototype?',`<p>Delete local demo submissions and sign out?</p><div class="form-actions"><button class="button secondary" data-close>Cancel</button><button class="button danger" id="confirm-reset">Reset demo</button></div>`));
-document.addEventListener('click',event=>{if(event.target.id==='confirm-reset'){saved={runs:[],viewer:''};persist();modal.close();render();toast('Demo reset.');}});
 function route(){
   if(location.hash==='#main')return;
   window.scrollTo(0,0);
