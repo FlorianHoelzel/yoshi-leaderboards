@@ -40,13 +40,19 @@ test('all 54 stages have independent Any% and 100% boards and working routes', (
         assert.equal(app.read('currentCategory().slug'), `il-${world}-${stage}-${mode}`);
         assert.match(app.element('main').innerHTML, new RegExp(`${world}-${stage}:`));
         assert.equal(app.read('bestRuns(currentCategory().slug).length'), 4);
-        assert.deepEqual(Array.from(app.read('bestRuns(currentCategory().slug).map(run=>run.rank)')), [1,1,3,4]);
+        assert.deepEqual(Array.from(app.read('bestRuns(currentCategory().slug).map(run=>run.rank)')), [1,2,3,4]);
       }
     }
   }
   app.read("location.hash='#leaderboard/warpless';route()");
   assert.equal(app.read('currentCategory().slug'), 'warpless');
   assert.equal(app.read('bestRuns(currentCategory().slug).length'), 12);
+  for (const slug of Array.from(app.read('categories.map(category=>category.slug)'))) {
+    const times = Array.from(app.read(`bestRuns('${slug}').map(run=>run.timeMs)`));
+    assert.equal(new Set(times).size, times.length);
+  }
+  app.read("sampleRuns.push({...sampleRuns[0],id:'equal-submission',runner:'tiedrunner'})");
+  assert.deepEqual(Array.from(app.read("bestRuns('100-percent').slice(0,3).map(run=>run.rank)")), [1,1,3]);
 });
 
 test('seconds-only times normalize without rounding or accepting invalid seconds', () => {

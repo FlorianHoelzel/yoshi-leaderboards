@@ -38,7 +38,7 @@ const runners = [
 const baseTimes=[7591420,6124100,2118230,5021860,162420,1837420,2076800,3312110,7321840];
 const sampleRuns=categories.flatMap((cat,c)=>runners.map((runner,i)=>({
   id:`sample-${c}-${i}`,runner:runner.name,category:cat.slug,
-  timeMs:baseTimes[c]+(i===1?0:i*42317+c*i*317),
+  timeMs:baseTimes[c]+(i*42317+c*i*317),
   date:`2026-09-${String(28-i).padStart(2,'0')}`,
   platform:i%4===2?'Emulator':'SNES',region:['NTSC-U','NTSC-J','PAL'][i%3],
   video:'',comment:'',
@@ -49,7 +49,7 @@ sampleRuns.push({...sampleRuns[0],id:'sample-older',timeMs:sampleRuns[0].timeMs+
 // Fictional samples for individual-level boards; these are not speedrun.com records.
 sampleRuns.push(...levelBoards.flatMap((board,c)=>runners.slice(0,4).map((runner,i)=>({
   id:`sample-il-${c}-${i}`,runner:runner.name,category:board.slug,
-  timeMs:24000+(c%9)*17321+(board.mode==='100'?65000:0)+(i<2?0:i*1237),
+  timeMs:24000+(c%9)*17321+(board.mode==='100'?65000:0)+(i*1237),
   date:`2026-09-${String(20-i).padStart(2,'0')}`,platform:i%2?'Emulator':'SNES',
   region:['NTSC-U','NTSC-J','PAL'][i%3],video:'',comment:'',status:'verified',reviewer:'Community moderator',sample:true,
 }))));
@@ -73,7 +73,7 @@ function bestRuns(category,region='all'){
   return sorted.filter(r=>{if(seen.has(r.runner))return false;seen.add(r.runner);return true;}).map((r,i)=>{if(r.timeMs!==previous)rank=i+1;previous=r.timeMs;return {...r,rank};});
 }
 function avatar(name,large=false){const runner=runners.find(r=>r.name===name);return `<span class="avatar${large?' large':''}" style="background:${runner?.color||'#e5edda'}">${escapeHtml(name.slice(0,2).toUpperCase())}</span>`;}
-function profileButton(name){return `<button class="runner-button" data-profile="${escapeHtml(name)}">${avatar(name)}<span>${escapeHtml(name)}<span class="runner-location">${escapeHtml(runners.find(r=>r.name===name)?.country||'Community runner')}</span></span></button>`;}
+function profileButton(name){return `<button class="runner-button" data-profile="${escapeHtml(name)}"><span>${escapeHtml(name)}<span class="runner-location">${escapeHtml(runners.find(r=>r.name===name)?.country||'Community runner')}</span></span></button>`;}
 function render(){
   const sectionNames={leaderboard:'Leaderboards',levels:'Individual levels',runners:'Runners',rules:'Rules & resources','my-runs':'My submissions'};
   const crumbs=[{label:'Yoshi’s Island',href:'#leaderboard'},{label:sectionNames[state.page],href:`#${state.page}`}];
@@ -130,7 +130,7 @@ function renderLeaderboard(){
   <div class="table-wrap"><table><thead><tr><th scope="col">RANK</th><th scope="col">RUNNER</th><th scope="col">TIME</th><th scope="col" class="platform-col">PLATFORM</th><th scope="col" class="region-col">REGION</th><th scope="col">DATE</th><th scope="col"><span class="sr-only">Details</span></th></tr></thead><tbody>${rows}</tbody></table>${!board.length?'<div class="empty"><h3>No verified runs yet</h3></div>':''}</div>
   </section>
   <aside class="side-panel">
-  <section class="panel"><h3>Recent verified runs</h3><div class="activity">${allRuns().filter(r=>r.status==='verified'&&r.category===cat.slug).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3).map(r=>`<div class="activity-row">${avatar(r.runner)}<div><button class="text-button" data-profile="${escapeHtml(r.runner)}">${escapeHtml(r.runner)}</button><p>${formatTime(r.timeMs)} · ${cat.name}</p><small>${dateLabel(r.date)}</small></div></div>`).join('')}</div></section>
+  <section class="panel"><h3>Recent verified runs</h3><div class="activity">${allRuns().filter(r=>r.status==='verified'&&r.category===cat.slug).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3).map(r=>`<div class="activity-row"><div><button class="text-button" data-profile="${escapeHtml(r.runner)}">${escapeHtml(r.runner)}</button><p>${formatTime(r.timeMs)} · ${cat.name}</p><small>${dateLabel(r.date)}</small></div></div>`).join('')}</div></section>
   </aside></div>`;
 
 }
