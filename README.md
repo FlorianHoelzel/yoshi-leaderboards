@@ -12,6 +12,12 @@ npm start
 
 Open http://127.0.0.1:4173. No installation or build step is required.
 
+## Public hosting
+
+The prototype is hosted publicly with Sites. Run `npm run build` to copy the six public assets into `dist/`; `.openai/hosting.json` links this repository to its hosted site. Publish through the Sites workflow after source changes.
+
+Visitors see fictional sample records. Demo submissions, names, and moderation changes are stored in each browser and are not shared between visitors.
+
 ## Included
 
 - Default frontpage with three rounded boxes: welcome, the five latest verified runs across categories, and a news empty state. Run times open details, runner names open profiles, and category links open their boards.
@@ -26,6 +32,6 @@ Open http://127.0.0.1:4173. No installation or build step is required.
 
 ## Boundaries
 
-This is a visual prototype, not the Django implementation. Demo names are not authenticated. Moderation controls have no real permissions. There is no backend, real account system, database, deployment, or video associated with sample runs. The date is fixed to October 7, 2026 for the prototype. Official category rules and precise timing boundaries have not been defined.
+This is a visual prototype, not the Django implementation. Demo names are not authenticated. Moderation controls have no real permissions. There is no backend, real account system, database, or video associated with sample runs. The date is fixed to October 7, 2026 for the prototype. Official category rules and precise timing boundaries have not been defined.
 
 The frontend uses native HTML, CSS, and JavaScript with an original decorative SVG landscape. It can later be adapted into Django templates. PostgreSQL and Coolify are planned for the working application.

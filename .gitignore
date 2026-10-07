@@ -2,3 +2,5 @@ node_modules/
 .venv/
 .env
 *.log
+dist/
+.sites-deployment.tar.gz
