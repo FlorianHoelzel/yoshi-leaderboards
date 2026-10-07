@@ -13,7 +13,7 @@ const categories = [
 const boards=[...categories,...levelBoards];
 const boardHref=board=>board.level?`#levels/${board.world}/${board.level}/${board.mode}`:`#leaderboard/${board.slug}`;
 const categoryGroups=['100%','All Main Stages','Any%'].map(name=>({name,categories:categories.filter(cat=>cat.group===name)}));
-function groupedCategories(renderCategory){return categoryGroups.map(group=>`<div class="category-group" role="group" aria-label="${group.name||'100%'}">${group.name?`<div class="category-group-label">${group.name}</div>`:''}<div class="category-group-items">${group.categories.map(renderCategory).join('')}</div></div>`).join('');}
+function groupedCategories(renderCategory){return categoryGroups.map(group=>`<div class="category-group" role="group" aria-label="${group.name||'100%'}">${group.name?`<a class="category-group-label ${state.page==='leaderboard'&&currentCategory().group===group.name?'selected':''}" href="#leaderboard/${selectedGroupCategories[group.name]||group.categories[0].slug}">${group.name}</a>`:''}<div class="category-group-items">${group.categories.map(renderCategory).join('')}</div></div>`).join('');}
 function categoryOptions(){return categoryGroups.map(group=>{const options=group.categories.map(cat=>`<option value="${cat.slug}" ${cat.slug===state.category?'selected':''}>${cat.label}</option>`).join('');return group.name?`<optgroup label="${group.name}">${options}</optgroup>`:options;}).join('');}
 const selectedGroupCategories={};
 function categorySelector(cat){
