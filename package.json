@@ -2,5 +2,5 @@
   "name": "yoshi-leaderboards-prototype",
   "version": "0.1.0",
   "private": true,
-  "scripts": { "start": "node serve.js", "check": "node --check app.js && node --check theme.js && node --check serve.js" }
+  "scripts": { "start": "node serve.js", "check": "node --check levels.js && node --check app.js && node --check theme.js && node --check serve.js", "test": "node --test" }
 }
