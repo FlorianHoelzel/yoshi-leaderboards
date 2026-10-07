@@ -14,7 +14,9 @@ Open http://127.0.0.1:4173. No installation or build step is required.
 
 ## Public hosting
 
-The prototype is hosted publicly with Sites. Run `npm run build` to copy the six public assets into `dist/`; `.openai/hosting.json` links this repository to its hosted site. Publish through the Sites workflow after source changes.
+The GitHub Pages workflow in `.github/workflows/pages.yml` checks, tests, builds, and publishes the prototype on each push to `main`. Enable GitHub Pages with **GitHub Actions** as the source in the repository's Pages settings. Run `npm run build` locally to copy the six public assets into `dist/`.
+
+The existing Sites deployment remains linked through `.openai/hosting.json` and requires a separate Sites publication to update.
 
 Visitors see fictional sample records. Demo submissions, names, and moderation changes are stored in each browser and are not shared between visitors.
 
