@@ -47,7 +47,7 @@ sampleRuns.push({...sampleRuns[0],id:'sample-older',timeMs:sampleRuns[0].timeMs+
 const storageKey='yoshi-visual-prototype-v1';
 let saved={runs:[],viewer:''};
 try { const value=JSON.parse(localStorage.getItem(storageKey)); if(value&&Array.isArray(value.runs)){saved.runs=value.runs.filter(r=>r&&typeof r.runner==='string'&&categories.some(c=>c.slug===r.category)&&Number.isSafeInteger(r.timeMs)&&r.timeMs>0&&['pending','verified','rejected'].includes(r.status));saved.viewer=typeof value.viewer==='string'?value.viewer:'';} } catch {}
-let state={page:'leaderboard',category:categories[0].slug,region:'all',search:''};
+let state={page:'home',category:categories[0].slug,region:'all',search:''};
 const main=document.querySelector('main');
 const modal=document.querySelector('#modal');
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -65,17 +65,32 @@ function bestRuns(category,region='all'){
 function avatar(name,large=false){const runner=runners.find(r=>r.name===name);return `<span class="avatar${large?' large':''}" style="background:${runner?.color||'#e5edda'}">${escapeHtml(name.slice(0,2).toUpperCase())}</span>`;}
 function profileButton(name){return `<button class="runner-button" data-profile="${escapeHtml(name)}">${avatar(name)}<span>${escapeHtml(name)}<span class="runner-location">${escapeHtml(runners.find(r=>r.name===name)?.country||'Community runner')}</span></span></button>`;}
 function render(){
-  const sectionNames={leaderboard:'Leaderboards',runners:'Runners',rules:'Rules & resources','my-runs':'My submissions'};
-  const crumbs=[{label:'Yoshi’s Island',href:'#leaderboard'},{label:sectionNames[state.page],href:`#${state.page}`}];
+  const sectionNames={home:'Frontpage',leaderboard:'Leaderboards',runners:'Runners',rules:'Rules & resources','my-runs':'My submissions'};
+  const crumbs=[{label:'Yoshi’s Island',href:'#home'},{label:sectionNames[state.page],href:`#${state.page}`}];
   if(state.page==='leaderboard')crumbs.push({label:currentCategory().name});
   document.querySelector('#breadcrumbs').innerHTML=crumbs.map((crumb,index)=>`<li>${index?'<span class="breadcrumb-separator" aria-hidden="true">/</span>':''}${index===crumbs.length-1?`<strong aria-current="page">${escapeHtml(crumb.label)}</strong>`:`<a href="${crumb.href}">${escapeHtml(crumb.label)}</a>`}</li>`).join('');
   document.querySelectorAll('[data-page]').forEach(link=>{const active=link.dataset.page===state.page;link.classList.toggle('active',active);active?link.setAttribute('aria-current','page'):link.removeAttribute('aria-current');});
   document.querySelector('#category-nav').innerHTML=groupedCategories(cat=>`<a href="#leaderboard/${cat.slug}" class="${state.page==='leaderboard'&&state.category===cat.slug?'selected':''}" ${state.page==='leaderboard'&&state.category===cat.slug?'aria-current="page"':''}>${cat.label}</a>`);
   document.querySelector('#account-button').textContent=saved.viewer?`${saved.viewer} ↗`:'Sign in ↗';
-  if(state.page==='leaderboard')renderLeaderboard();
+  if(state.page==='home')renderHome();
+  else if(state.page==='leaderboard')renderLeaderboard();
   else if(state.page==='runners')renderRunners();
   else if(state.page==='rules')renderRules();
   else renderMyRuns();
+}
+function renderHome(){
+  const latest=allRuns().filter(run=>run.status==='verified').sort((a,b)=>b.date.localeCompare(a.date)||(b.submittedAt||'').localeCompare(a.submittedAt||'')||a.id.localeCompare(b.id,undefined,{numeric:true})).slice(0,5);
+  main.innerHTML=`<div class="frontpage-grid">
+    <section class="frontpage-card frontpage-welcome" aria-labelledby="welcome-title"><h1 id="welcome-title">Welcome to the new Yoshi leaderboards</h1></section>
+    <section class="frontpage-card frontpage-runs" aria-labelledby="latest-runs-title">
+      <header class="frontpage-card-header"><h2 id="latest-runs-title">Latest runs</h2></header>
+      ${latest.length?`<ol class="latest-runs">${latest.map(run=>{
+        const cat=categories.find(cat=>cat.slug===run.category);
+        return `<li class="latest-run"><div class="latest-run-heading"><button class="runner-button" data-profile="${escapeHtml(run.runner)}">${avatar(run.runner)}<span>${escapeHtml(run.runner)}</span></button><button class="time-button" data-run="${escapeHtml(run.id)}" aria-label="View ${escapeHtml(run.runner)}'s ${escapeHtml(cat.name)} run, ${formatTime(run.timeMs)}">${formatTime(run.timeMs)}</button></div><a class="latest-run-category" href="#leaderboard/${cat.slug}">${cat.name}</a><div class="latest-run-meta"><span>${escapeHtml(run.platform)}</span><time datetime="${escapeHtml(run.date)}">${dateLabel(run.date)}</time></div></li>`;
+      }).join('')}</ol>`:'<div class="frontpage-empty"><p>No verified runs yet.</p></div>'}
+    </section>
+    <section class="frontpage-card frontpage-news" aria-labelledby="news-title"><header class="frontpage-card-header"><h2 id="news-title">News</h2></header><div class="frontpage-empty"><p>No news posted yet.</p></div></section>
+  </div>`;
 }
 function renderLeaderboard(){
   const cat=currentCategory();const board=bestRuns(cat.slug,state.region);const filtered=board.filter(r=>r.runner.toLowerCase().includes(state.search.toLowerCase()));
@@ -116,5 +131,5 @@ modal.addEventListener('click',event=>{if(event.target===modal){const rect=modal
 document.querySelector('#account-button').addEventListener('click',account);
 document.querySelector('#reset-demo').addEventListener('click',()=>openModal('Reset the prototype?',`<p>Delete local demo submissions and sign out?</p><div class="form-actions"><button class="button secondary" data-close>Cancel</button><button class="button danger" id="confirm-reset">Reset demo</button></div>`));
 document.addEventListener('click',event=>{if(event.target.id==='confirm-reset'){saved={runs:[],viewer:''};persist();modal.close();render();toast('Demo reset.');}});
-function route(){if(location.hash==='#main')return;window.scrollTo(0,0);const [page,category]=location.hash.slice(1).split('/');state.page=['leaderboard','runners','rules','my-runs'].includes(page)?page:'leaderboard';if(category&&categories.some(c=>c.slug===category)){state.category=category;state.region='all';state.search='';}render();}
+function route(){if(location.hash==='#main')return;window.scrollTo(0,0);const [page,category]=location.hash.slice(1).split('/');state.page=['home','leaderboard','runners','rules','my-runs'].includes(page)?page:'home';if(category&&categories.some(c=>c.slug===category)){state.category=category;state.region='all';state.search='';}render();}
 window.addEventListener('hashchange',route);route();
