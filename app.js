@@ -169,7 +169,22 @@ function renderStats(){
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download=`world-record-progression-${board.slug}-${state.platform}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   });
 }
-function renderRunners(){main.innerHTML=`<div class="page-heading"><div><h2>Runners</h2></div><button class="button" data-submit>Submit a run</button></div><div class="runner-grid">${[...new Set(allRuns().filter(r=>r.status==='verified').map(r=>r.runner))].map(name=>`<button class="runner-card" data-profile="${escapeHtml(name)}">${avatar(name,true)}<span><strong>${escapeHtml(name)}</strong>${runnerCountry(name)}<p>${allRuns().filter(r=>r.runner===name&&r.status==='verified').length} verified runs</p></span></button>`).join('')}</div>`;}
+function renderRunners(){
+  main.innerHTML=`<div class="page-heading"><div><h2>Runners</h2></div><button class="button" data-submit>Submit a run</button></div><div class="runners-toolbar"><label class="runners-search" for="runner-search">Search runners<input id="runner-search" type="search" placeholder="Runner name" autocomplete="off" aria-controls="runner-results" value="${escapeHtml(state.runnerSearch||'')}"></label><p id="runner-count" class="subtext" role="status" aria-live="polite" aria-atomic="true"></p></div><div id="runner-results"></div>`;
+  renderRunnerResults();
+  document.querySelector('#runner-search').addEventListener('input',event=>{
+    state.runnerSearch=event.target.value;
+    renderRunnerResults();
+  });
+}
+function renderRunnerResults(){
+  const counts=new Map();
+  allRuns().filter(run=>run.status==='verified').forEach(run=>counts.set(run.runner,(counts.get(run.runner)||0)+1));
+  const query=(state.runnerSearch||'').trim().toLowerCase();
+  const names=[...counts.keys()].filter(name=>name.toLowerCase().includes(query));
+  document.querySelector('#runner-count').textContent=`${names.length} ${names.length===1?'runner':'runners'}`;
+  document.querySelector('#runner-results').innerHTML=names.length?`<div class="runner-grid">${names.map(name=>`<button class="runner-card" data-profile="${escapeHtml(name)}">${avatar(name,true)}<span><strong>${escapeHtml(name)}</strong>${runnerCountry(name)}<p>${counts.get(name)} verified runs</p></span></button>`).join('')}</div>`:`<div class="empty"><h3>${query?'No runners found':'No runners yet'}</h3></div>`;
+}
 function renderRules(){main.innerHTML=`${leaderboardNavigation()}<div class="page-heading"><h2>Rules</h2></div><section class="content-card">${categoryGroups.flatMap(group=>group.categories).map(board=>`<article class="rule-block"><h3>${board.name}</h3>${boardRulesButton(board)}</article>`).join('')}</section>`;}
 function renderMyRuns(){const own=saved.runs.filter(r=>r.runner===saved.viewer).sort((a,b)=>b.submittedAt.localeCompare(a.submittedAt));main.innerHTML=`<div class="page-heading"><div><h2>My submissions</h2></div><button class="button" data-submit>Submit a run</button></div><div class="notice">Demo moderation</div><section class="board">${own.length?`<div class="table-wrap"><table><thead><tr><th>CATEGORY</th><th>TIME</th><th>DATE</th><th>STATUS</th><th>PREVIEW REVIEW</th></tr></thead><tbody>${own.map(r=>`<tr><td>${boards.find(c=>c.slug===r.category).name}</td><td><button class="time-button" data-run="${r.id}">${formatTime(r.timeMs)}</button></td><td class="run-date">${dateLabel(r.date)}</td><td><span class="status ${r.status}">${r.status[0].toUpperCase()+r.status.slice(1)}</span></td><td>${r.status==='pending'?`<button class="text-button" data-verify="${r.id}">Verify</button> · <button class="text-button" data-reject="${r.id}">Reject</button>`:'<span class="subtext">Reviewed</span>'}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty"><h3>No submissions</h3><button class="button" data-submit>Submit a run</button></div>`}</section>`;}
 let lastModalTitle='';
