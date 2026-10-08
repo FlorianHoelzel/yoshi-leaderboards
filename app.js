@@ -220,9 +220,8 @@ function boardRulesButton(board){return `<button class="board-rules" type="butto
 function showBoardRules(slug){
   const board=boards.find(board=>board.slug===slug);if(!board)return;
   const rules=board.level?{...levelRules,requirements:[board.mode==='100'?'Complete the selected stage with a score of 100.':'Complete the selected stage.']}:categoryRules[slug];
-  const source=board.level?'https://www.speedrun.com/yi/levels':`https://www.speedrun.com/yi?x=${rules.source}`;
   const sections=[['requirements','Requirements'],['timing','Timing'],['bans','Not allowed'],['verification','Verification']];
-  openModal('Rules',`<h3 class="rules-category">${escapeHtml(board.name)}</h3><div class="category-rules">${sections.filter(([key])=>rules[key]).map(([key,title])=>`<section><h4>${title}</h4><ul>${rules[key].map(rule=>`<li>${escapeHtml(rule)}</li>`).join('')}</ul></section>`).join('')}</div><a class="text-button video-link" href="${source}" target="_blank" rel="noopener noreferrer">Source: speedrun.com</a>`);
+  openModal('Rules',`<h3 class="rules-category">${escapeHtml(board.name)}</h3><div class="category-rules">${sections.filter(([key])=>rules[key]).map(([key,title])=>`<section><h4>${title}</h4><ul>${rules[key].map(rule=>`<li>${escapeHtml(rule)}</li>`).join('')}</ul></section>`).join('')}</div>`);
 }
 function videoEmbedUrl(value,parent=location.hostname){
   let url;try{url=new URL(value);}catch{return null;}
