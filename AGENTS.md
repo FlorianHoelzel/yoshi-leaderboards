@@ -8,5 +8,9 @@
 
 # Git workflow
 
-- Commit and push completed project changes to `https://github.com/FlorianHoelzel/yoshi-leaderboards` after verification.
+- Work locally. Do not commit or push unless the user explicitly asks.
 - Keep secrets and local environment files out of commits.
+
+# Local preview
+
+- Do not start a preview or development server unless the user explicitly asks.
