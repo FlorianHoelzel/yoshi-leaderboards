@@ -295,6 +295,7 @@ html[data-theme="dark"] .pb-improvement{background:#2b352d;color:var(--green)}
 .runners-toolbar .subtext{padding-bottom:10px}
 
 /* Global scrollbars also cover new scroll containers and form fields. */
+.leaderboard-table [data-run-row]{cursor:pointer}
 :root{--scrollbar-thumb:#7b947c;--scrollbar-hover:#35784f}
 html[data-theme="dark"]{--scrollbar-thumb:#555d58;--scrollbar-hover:var(--green)}
 *{scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) transparent}
