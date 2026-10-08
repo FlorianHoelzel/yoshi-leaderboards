@@ -85,8 +85,8 @@ function levelSelector(board){
   const level=levels.find(level=>level.slug===board.level);
   return `<div class="board-header"><div class="category-tabs" role="group" aria-label="World">${Array.from({length:6},(_,i)=>i+1).map(world=>`<a href="#levels/${world}/${world}-1/${board.mode}${platformQuery()}" class="${world===board.world?'active':''}" ${world===board.world?'aria-current="true"':''}>World ${world}</a>`).join('')}</div>${boardRulesButton(board)}</div>
   <div class="subcategory-tabs level-tabs" role="group" aria-label="Level">${levels.filter(level=>level.world===board.world).map(level=>`<a href="#levels/${board.world}/${level.slug}/${board.mode}${platformQuery()}" class="${level.slug===board.level?'active':''}" ${level.slug===board.level?'aria-current="true"':''}>${level.slug}</a>`).join('')}</div>
-  <div class="level-heading"><h3>${level.slug}: ${escapeHtml(level.name)}</h3><a class="text-button" href="https://www.speedrun.com/yi/levels" target="_blank" rel="noopener noreferrer">Speedrun.com</a></div>
-  <div class="board-filters"><div class="subcategory-tabs" role="group" aria-label="Level category">${levelCategories.map(category=>`<a href="#levels/${board.world}/${board.level}/${category.slug}${platformQuery()}" class="${category.slug===board.mode?'active':''}" ${category.slug===board.mode?'aria-current="true"':''}>${category.name}</a>`).join('')}</div>${platformSelector()}</div>`;
+  <div class="level-heading"><h3>${level.slug}: ${escapeHtml(level.name)}</h3></div>
+  <div class="board-filters"><div class="run-type-selector"><span class="filter-label">Category</span><div class="subcategory-tabs" role="group" aria-label="Level category">${levelCategories.map(category=>`<a href="#levels/${board.world}/${board.level}/${category.slug}${platformQuery()}" class="${category.slug===board.mode?'active':''}" ${category.slug===board.mode?'aria-current="true"':''}>${category.name}</a>`).join('')}</div></div>${platformSelector()}</div>`;
 }
 function renderSubmissionBoardFields(){
   const fields=document.querySelector('#submission-board-fields');
