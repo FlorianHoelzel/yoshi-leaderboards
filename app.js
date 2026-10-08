@@ -50,7 +50,7 @@ function avatar(name,large=false){const runner=runners.find(r=>r.name===name);re
 function runnerCountry(name,tag='p'){const country=runners.find(r=>r.name===name)?.country;return country?`<${tag} class="runner-location">${escapeHtml(country)}</${tag}>`:'';}
 function profileButton(name){return `<button class="runner-button" data-profile="${escapeHtml(name)}" title="${escapeHtml(name)}"><span>${escapeHtml(name)}${runnerCountry(name,'span')}</span></button>`;}
 function render(){
-  const sectionNames={leaderboard:'Leaderboards',levels:'Individual levels',runners:'Runners',stats:'Stats',rules:'Rules & resources','my-runs':'My submissions'};
+  const sectionNames={leaderboard:'Leaderboards',levels:'Individual levels',runners:'Runners',resources:'Resources',stats:'Stats',rules:'Rules & resources','my-runs':'My submissions'};
   const crumbs=[{label:'Yoshi’s Island',href:'#leaderboard'},{label:sectionNames[state.page],href:`#${state.page}`}];
   if(state.page==='levels'){const level=levels.find(level=>level.slug===state.level);crumbs.push({label:`World ${level.world}`,href:`#levels/${level.world}`},{label:`${level.slug}: ${level.name}`});}
   if(state.page==='leaderboard')crumbs.push({label:currentCategory().name});
@@ -71,6 +71,7 @@ function render(){
   if(state.page==='home')renderHome();
   else if(state.page==='leaderboard'||state.page==='levels')renderLeaderboard();
   else if(state.page==='runners')renderRunners();
+  else if(state.page==='resources')renderResources();
   else if(state.page==='stats')renderStats();
   else if(state.page==='rules')renderRules();
   else renderMyRuns();
@@ -136,21 +137,103 @@ function recordProgression(category,runs=allRuns(),platform=state.platform){
   return chronological.filter(run=>{if(run.timeMs>=record)return false;record=run.timeMs;return true;});
 }
 function statsDate(date){return new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});}
-function recordChart(records,title='World record progression',endDate='2026-10-07'){
+const chartRunnerHues=new Map();
+function chartRunnerStyle(name){
+  if(!chartRunnerHues.has(name))chartRunnerHues.set(name,Math.round(chartRunnerHues.size*137.508)%360);
+  const hue=chartRunnerHues.get(name);
+  return `--runner-light:hsl(${hue} 58% 40%);--runner-dark:hsl(${hue} 65% 70%)`;
+}
+function chartDateBounds(records,endDate){
+  const start=Date.parse(`${records[0].date}T00:00:00Z`);
+  return {start,end:Math.max(Date.parse(`${endDate}T00:00:00Z`),Date.parse(`${records.at(-1).date}T00:00:00Z`),start+86400000)};
+}
+function chartViewport(bounds,viewport,action,factor=1,anchor=.5,offset=0){
+  if(action==='reset')return {...bounds};
+  const full=bounds.end-bounds.start,current=viewport.end-viewport.start;
+  const span=Math.max(Math.min(86400000,full),Math.min(full,current*(action==='in'?.5:action==='out'?2:action==='zoom'?factor:1)));
+  const shift=action==='earlier'?-current*.5:action==='later'?current*.5:action==='pan'?offset:0;
+  const start=Math.max(bounds.start,Math.min(bounds.end-span,viewport.start+(current-span)*anchor+shift));
+  return {start,end:start+span};
+}
+function setupRecordCharts(root,records,title='World record progression',endDate='2026-10-07'){
+  root.querySelectorAll('.history-chart').forEach(chart=>{
+    const bounds=chartDateBounds(records,endDate);let viewport={...bounds},drag=null,suppressClick=false;
+    const svg=chart.querySelector('.record-chart');
+    function draw(){
+      const holder=document.createElement('div');holder.innerHTML=recordChart(records,title,endDate,viewport);
+      svg.innerHTML=holder.querySelector('.record-chart').innerHTML;
+      chart.querySelector('.chart-range').textContent=holder.querySelector('.chart-range').textContent;
+    }
+    svg.addEventListener('wheel',event=>{
+      if(drag||!event.deltaY)return;
+      event.preventDefault();
+      const rect=svg.getBoundingClientRect(),anchor=Math.max(0,Math.min(1,((event.clientX-rect.left)/rect.width*900-112)/758));
+      const delta=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?rect.height:1);
+      viewport=chartViewport(bounds,viewport,'zoom',Math.exp(Math.max(-1,Math.min(1,delta*.002))),anchor);
+      draw();
+    },{passive:false});
+    svg.addEventListener('pointerdown',event=>{
+      if(event.button!==0||drag)return;
+      suppressClick=false;
+      drag={id:event.pointerId,x:event.clientX,y:event.clientY,viewport:{...viewport},width:svg.getBoundingClientRect().width*758/900,moved:false};
+    });
+    chart.addEventListener('pointermove',event=>{
+      if(!drag||event.pointerId!==drag.id)return;
+      if(!drag.moved&&Math.hypot(event.clientX-drag.x,event.clientY-drag.y)<4)return;
+      if(!drag.moved)chart.setPointerCapture(event.pointerId);
+      drag.moved=true;chart.classList.add('is-dragging');
+      const offset=-(event.clientX-drag.x)/drag.width*(drag.viewport.end-drag.viewport.start);
+      viewport=chartViewport(bounds,drag.viewport,'pan',1,.5,offset);draw();
+    });
+    function finishDrag(event){
+      if(!drag||event.pointerId!==drag.id)return;
+      suppressClick=drag.moved;drag=null;chart.classList.remove('is-dragging');
+      if(chart.hasPointerCapture(event.pointerId))chart.releasePointerCapture(event.pointerId);
+    }
+    chart.addEventListener('pointerup',finishDrag);
+    chart.addEventListener('pointercancel',finishDrag);
+    chart.addEventListener('lostpointercapture',finishDrag);
+    chart.addEventListener('pointerleave',()=>{if(drag&&!drag.moved)drag=null;});
+    svg.addEventListener('dblclick',()=>{viewport={...bounds};draw();});
+    chart.addEventListener('click',event=>{
+      if(suppressClick){suppressClick=false;return;}
+      const point=event.target.closest('[data-record]');
+      if(point){runDetails(point.dataset.record);return;}
+    });
+    chart.addEventListener('keydown',event=>{
+      const point=event.target.closest('[data-record]');
+      if(point&&(event.key==='Enter'||event.key===' ')){event.preventDefault();runDetails(point.dataset.record);}
+      if(point)return;
+      const action={'+':'in','=':'in','-':'out',ArrowLeft:'earlier',ArrowRight:'later',Home:'reset'}[event.key];
+      if(action){event.preventDefault();viewport=chartViewport(bounds,viewport,action);draw();}
+    });
+  });
+}
+function recordChart(records,title='World record progression',endDate='2026-10-07',viewport=null){
   if(!records.length)return '<div class="empty"><h3>No verified runs yet</h3></div>';
   const left=112,right=870,top=28,bottom=292;
-  const start=Date.parse(`${records[0].date}T00:00:00Z`),end=Math.max(Date.parse(`${endDate}T00:00:00Z`),Date.parse(`${records.at(-1).date}T00:00:00Z`),start+86400000);
-  const fastest=records.at(-1).timeMs,slowest=records[0].timeMs,padding=Math.max((slowest-fastest)*.15,slowest*.005,1);
+  const bounds=chartDateBounds(records,endDate),{start,end}=viewport||bounds;
+  const timestamp=run=>Date.parse(`${run.date}T00:00:00Z`);
+  const visible=records.filter(run=>timestamp(run)>=start&&timestamp(run)<=end);
+  const preceding=records.filter(run=>timestamp(run)<start).at(-1);
+  const values=[...visible,...(preceding?[preceding]:[])];
+  const fastest=Math.min(...values.map(run=>run.timeMs)),slowest=Math.max(...values.map(run=>run.timeMs)),padding=Math.max((slowest-fastest)*.15,slowest*.005,1);
   const low=Math.max(0,fastest-padding),high=slowest+padding;
   const x=date=>left+(Date.parse(`${date}T00:00:00Z`)-start)/(end-start)*(right-left);
   const y=time=>bottom-(time-low)/(high-low)*(bottom-top);
-  let line=`M ${x(records[0].date)} ${y(records[0].timeMs)}`;
-  records.slice(1).forEach(run=>{line+=` H ${x(run.date)} V ${y(run.timeMs)}`;});
-  line+=` H ${right}`;
+  const segments=records.map((run,index)=>{
+    const from=Math.max(start,timestamp(run)),to=Math.min(end,index+1<records.length?timestamp(records[index+1]):end);
+    if(to<from)return '';
+    const fromX=left+(from-start)/(end-start)*(right-left),toX=left+(to-start)/(end-start)*(right-left);
+    const next=records[index+1],vertical=next&&timestamp(next)<=end?` V ${y(next.timeMs)}`:'';
+    return `<path class="chart-line" d="M ${fromX} ${y(run.timeMs)} H ${toX}${vertical}"/>`;
+  }).join('');
   const grid=Array.from({length:5},(_,i)=>{const time=Math.round(high-(high-low)*i/4),cy=top+(bottom-top)*i/4;return `<line class="chart-grid" x1="${left}" y1="${cy}" x2="${right}" y2="${cy}"/><text class="chart-label" x="${left-14}" y="${cy+5}" text-anchor="end">${high-low<10000?formatTime(time):formatTime(time).replace(/\.\d{3}$/,'')}</text>`;}).join('');
   const dates=Array.from({length:4},(_,i)=>{const timestamp=start+(end-start)*i/3,cx=left+(right-left)*i/3;return `<text class="chart-label" x="${cx}" y="${bottom+34}" text-anchor="${i===0?'start':i===3?'end':'middle'}">${new Date(timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})}</text>`;}).join('');
-  const points=records.map(run=>`<circle class="record-point runner-color-${Math.max(0,runners.findIndex(runner=>runner.name===run.runner))%6}" cx="${x(run.date)}" cy="${y(run.timeMs)}" r="5" tabindex="0" role="button" data-record="${escapeHtml(run.id)}" aria-label="${escapeHtml(`${run.runner}, ${formatTime(run.timeMs)}, ${statsDate(run.date)}. View run details`)}"><title>${escapeHtml(`${run.runner} · ${formatTime(run.timeMs)} · ${statsDate(run.date)}`)}</title></circle>`).join('');
-  return `<div class="record-chart-scroll"><svg class="record-chart" viewBox="0 0 900 350" role="group" aria-labelledby="record-chart-title record-chart-description"><title id="record-chart-title">${escapeHtml(title)}</title><desc id="record-chart-description">${records.length} improvements from ${statsDate(records[0].date)} to ${statsDate(records.at(-1).date)}. Time on the vertical axis and run date on the horizontal axis. Select a point for run details. All values follow in the table.</desc>${grid}<path class="chart-area" d="${line} V ${bottom} H ${left} Z"/><path class="chart-line" d="${line}"/>${dates}${points}</svg></div>`;
+  const points=visible.map(run=>`<circle class="record-point runner-series" style="${chartRunnerStyle(run.runner)}" cx="${x(run.date)}" cy="${y(run.timeMs)}" r="5" tabindex="0" role="button" data-record="${escapeHtml(run.id)}" aria-label="${escapeHtml(`${run.runner}, ${formatTime(run.timeMs)}, ${statsDate(run.date)}. View run details`)}"><title>${escapeHtml(`${run.runner} · ${formatTime(run.timeMs)} · ${statsDate(run.date)}`)}</title></circle>`).join('');
+  const legend=[...new Set(records.map(run=>run.runner))].map(name=>`<li style="${chartRunnerStyle(name)}"><span class="runner-swatch" aria-hidden="true"></span>${escapeHtml(name)}</li>`).join('');
+  const zoom=(bounds.end-bounds.start)/(end-start),date=timestamp=>new Date(timestamp).toISOString().slice(0,10);
+  return `<div class="history-chart"><div class="chart-controls"><span>Scroll to zoom · Drag to pan · Double-click to reset</span><span class="chart-range">${Number(zoom.toFixed(1))}× · ${statsDate(date(start))} – ${statsDate(date(end))}</span></div><div class="record-chart-scroll"><svg class="record-chart" viewBox="0 0 900 350" role="group" tabindex="0" aria-labelledby="record-chart-title record-chart-description"><title id="record-chart-title">${escapeHtml(title)}</title><desc id="record-chart-description">${records.length} improvements from ${statsDate(records[0].date)} to ${statsDate(records.at(-1).date)}. Time on the vertical axis and run date on the horizontal axis. Select a point for run details. Scroll to zoom, drag to pan, or double-click to reset. Keyboard: plus or minus to zoom, arrow keys to pan, Home to reset.</desc>${grid}${segments}${dates}${points}</svg></div><ul class="chart-legend" aria-label="Runners">${legend}</ul></div>`;
 }
 function recordList(records){
   if(!records.length)return '<div class="empty"><h3>No verified runs yet</h3></div>';
@@ -162,7 +245,7 @@ function renderStats(){
   main.innerHTML=`<div class="page-heading"><div><h2>Stats</h2><p class="subtext">Verified runs · Sample data</p></div></div><dl class="stats-grid">${[['Total runs',stats.total],['Full game runs',stats.fullGame],['Level runs',stats.levels],['Total players',stats.players]].map(([label,value])=>`<div class="stat-card"><dt>${label}</dt><dd>${value.toLocaleString('en-US')}</dd></div>`).join('')}<div class="stat-card stat-duration"><dt>Total run time</dt><dd>${totalRunTime(stats.timeMs)}</dd></div></dl><section class="board stats-board" aria-labelledby="progression-title"><div class="stats-heading"><h3 id="progression-title">World record progression</h3><label class="stats-category">Category<select id="stats-category" aria-label="Category">${options}</select></label></div><div class="stats-platform">${platformSelector()}</div><div class="stats-toolbar"><div class="stats-views" role="group" aria-label="Progression view"><button type="button" data-stats-view="chart" aria-pressed="${state.statsView==='chart'}">Chart</button><button type="button" data-stats-view="list" aria-pressed="${state.statsView==='list'}">List</button></div><button type="button" class="button secondary" id="stats-csv" ${records.length?'':'disabled'}>Download CSV</button></div>${state.statsView==='list'?recordList(records):recordChart(records)}${records.length?`<div class="record-summary"><span>${records.length} records</span><span>Current record <button class="time-button" data-run="${escapeHtml(records.at(-1).id)}">${formatTime(records.at(-1).timeMs)}</button> · ${escapeHtml(records.at(-1).runner)}</span></div>`:''}</section>`;
   document.querySelector('#stats-category').addEventListener('change',event=>{state.statsBoard=event.target.value;location.hash=`stats/${state.statsBoard}${platformQuery()}`;renderStats();});
   document.querySelectorAll('[data-stats-view]').forEach(button=>button.addEventListener('click',()=>{state.statsView=button.dataset.statsView;renderStats();document.querySelector(`[data-stats-view="${state.statsView}"]`).focus();}));
-  document.querySelectorAll('[data-record]').forEach(point=>{point.addEventListener('click',()=>runDetails(point.dataset.record));point.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();runDetails(point.dataset.record);}});});
+  setupRecordCharts(main,records);
   document.querySelector('#stats-csv').addEventListener('click',()=>{
     const cell=value=>`"${String(value).replace(/^[=+@-]/,"'$&").replace(/"/g,'""')}"`;
     const csv=[['Date','Runner','RTA time','RTA milliseconds','Improvement milliseconds'],...records.map((run,i)=>[run.date,run.runner,formatTime(run.timeMs),run.timeMs,i?records[i-1].timeMs-run.timeMs:''])].map(row=>row.map(cell).join(',')).join('\r\n');
@@ -184,6 +267,14 @@ function renderRunnerResults(){
   const names=[...counts.keys()].filter(name=>name.toLowerCase().includes(query));
   document.querySelector('#runner-count').textContent=`${names.length} ${names.length===1?'runner':'runners'}`;
   document.querySelector('#runner-results').innerHTML=names.length?`<div class="runner-grid">${names.map(name=>`<button class="runner-card" data-profile="${escapeHtml(name)}">${avatar(name,true)}<span><strong>${escapeHtml(name)}</strong>${runnerCountry(name)}<p>${counts.get(name)} verified runs</p></span></button>`).join('')}</div>`:`<div class="empty"><h3>${query?'No runners found':'No runners yet'}</h3></div>`;
+}
+function renderResources(){
+  main.innerHTML=`<div class="page-heading"><div><h2>Resources</h2></div></div><div class="resource-grid">${[
+    {title:'Guides',layout:'resource-guides'},
+    {title:'Tools',layout:'resource-tools'},
+    {title:'Routes',layout:'resource-routes'},
+    {title:'Community links',layout:'resource-community'},
+  ].map(resource=>`<section class="resource-card ${resource.layout}"><h3>${resource.title}</h3><p class="resource-status">Placeholder</p></section>`).join('')}</div>`;
 }
 function renderRules(){main.innerHTML=`${leaderboardNavigation()}<div class="page-heading"><h2>Rules</h2></div><section class="content-card">${categoryGroups.flatMap(group=>group.categories).map(board=>`<article class="rule-block"><h3>${board.name}</h3>${boardRulesButton(board)}</article>`).join('')}</section>`;}
 function renderMyRuns(){const own=saved.runs.filter(r=>r.runner===saved.viewer).sort((a,b)=>b.submittedAt.localeCompare(a.submittedAt));main.innerHTML=`<div class="page-heading"><div><h2>My submissions</h2></div></div><div class="notice">Demo moderation</div><section class="board">${own.length?`<div class="table-wrap"><table><thead><tr><th>CATEGORY</th><th>TIME</th><th>DATE</th><th>STATUS</th><th>PREVIEW REVIEW</th></tr></thead><tbody>${own.map(r=>`<tr><td>${boards.find(c=>c.slug===r.category).name}</td><td><button class="time-button" data-run="${r.id}">${formatTime(r.timeMs)}</button></td><td class="run-date">${dateLabel(r.date)}</td><td><span class="status ${r.status}">${r.status[0].toUpperCase()+r.status.slice(1)}</span></td><td>${r.status==='pending'?`<button class="text-button" data-verify="${r.id}">Verify</button> · <button class="text-button" data-reject="${r.id}">Reject</button>`:'<span class="subtext">Reviewed</span>'}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty"><h3>No submissions</h3></div>`}</section>`;}
@@ -230,7 +321,7 @@ function renderProfileContent(){
     const [category,platform]=profileState.board.split('/'),records=profileProgression(runs,category,platform);
     content.innerHTML=bests.length?`<label class="profile-progress-select">Board<select id="profile-board">${bests.map(entry=>{const key=`${entry.cat.slug}/${entry.platform}`;return `<option value="${key}" ${key===profileState.board?'selected':''}>${escapeHtml(entry.cat.name)} (${entry.platform==='vc'?'VC':'SNES / Emulator'})</option>`;}).join('')}</select></label>${records.length?`<div class="profile-progress-summary"><div><span>First dated PB</span><strong>${formatTime(records[0].timeMs)}</strong></div><div><span>Latest dated PB</span><strong>${formatTime(records.at(-1).timeMs)}</strong></div><div><span>Total improvement</span><strong>${formatTime(records[0].timeMs-records.at(-1).timeMs)}</strong></div></div>${recordChart(records,'Personal best progression',records.at(-1).date)}<div class="table-wrap"><table><caption class="sr-only">Personal best progression, oldest first</caption><thead><tr><th scope="col">DATE</th><th scope="col">TIME</th><th scope="col">IMPROVEMENT</th></tr></thead><tbody>${records.map((run,index)=>`<tr><td>${dateLabel(run.date)}</td><td><button class="time-button" data-run="${escapeHtml(run.id)}">${formatTime(run.timeMs)}</button></td><td>${index?formatTime(records[index-1].timeMs-run.timeMs):'First dated PB'}</td></tr>`).join('')}</tbody></table></div><p class="profile-note">Runs without a date are excluded from progression.</p>`:'<div class="empty"><h3>No dated runs for this board</h3></div>'}`:'<div class="empty"><h3>No verified PBs for these filters</h3></div>';
     document.querySelector('#profile-board')?.addEventListener('change',event=>{profileState.board=event.target.value;renderProfileContent();document.querySelector('#profile-board')?.focus();});
-    content.querySelectorAll('[data-record]').forEach(point=>{point.addEventListener('click',()=>runDetails(point.dataset.record));point.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();runDetails(point.dataset.record);}});});
+    if(records.length)setupRecordCharts(content,records,'Personal best progression',records.at(-1).date);
   }
 }
 function runDetails(id){const run=allRuns().find(r=>r.id===id);if(!run)return;const cat=boards.find(c=>c.slug===run.category);const pb=bestRuns(run.category,'all',runPlatform(run)).find(r=>r.runner===run.runner);const earlier=allRuns().filter(r=>r.runner===run.runner&&r.category===run.category&&runPlatform(r)===runPlatform(run)&&r.status==='verified'&&r.date&&run.date&&r.date<run.date).sort((a,b)=>a.timeMs-b.timeMs)[0];openModal('Run details',`<div class="run-heading"><h3><button class="text-button" data-profile="${escapeHtml(run.runner)}">${escapeHtml(run.runner)}</button></h3><p>${cat.name}</p></div><div class="detail-time-row"><div class="detail-time">${formatTime(run.timeMs)}</div>${earlier&&run.timeMs<earlier.timeMs?`<span class="pb-improvement" aria-label="Improvement over previous PB: ${formatTime(earlier.timeMs-run.timeMs)}" title="Improvement over previous PB"><span class="pb-improvement-value">−${formatTime(earlier.timeMs-run.timeMs)}</span><span>vs. previous PB</span></span>`:''}</div><span class="status ${run.status}">${run.status[0].toUpperCase()+run.status.slice(1)}</span><dl class="detail-grid"><div><dt>Rank</dt><dd>${run.status==='verified'?(pb?.id===id?`#${pb.rank}`:'Previous verified run'):(run.status==='rejected'?'Not ranked':'Awaiting verification')}</dd></div><div><dt>Run date</dt><dd>${escapeHtml(run.date||'Unknown')}</dd></div><div><dt>Platform</dt><dd>${escapeHtml(run.platform)}</dd></div><div><dt>Region</dt><dd>${escapeHtml(run.region)}</dd></div><div><dt>Timing method</dt><dd>RTA</dd></div><div><dt>Reviewed by</dt><dd>${escapeHtml(run.reviewer||'Not reviewed yet')}</dd></div></dl>${run.rejectionReason?`<div class="notice">Rejection reason: ${escapeHtml(run.rejectionReason)}</div>`:''}<p>${escapeHtml(run.comment)}</p>${runVideo(run.video)}`);}
@@ -345,7 +436,7 @@ function route(){
   const [path,query='']=location.hash.slice(1).split('?');
   const [page,category,levelSlug,mode]=path.split('/');
   if(['leaderboard','levels','stats'].includes(page))state.platform=new URLSearchParams(query).get('platform')==='vc'?'vc':'snes';
-  state.page=['leaderboard','levels','runners','stats','rules','my-runs'].includes(page)?page:'leaderboard';
+  state.page=['leaderboard','levels','runners','resources','stats','rules','my-runs'].includes(page)?page:'leaderboard';
   if(state.page==='stats'&&boards.some(board=>board.slug===category))state.statsBoard=category;
   if(state.page==='levels'){
     const world=Number(category);

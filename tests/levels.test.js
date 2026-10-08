@@ -4,6 +4,66 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
+test('history chart zoom clamps date ranges, pans and resets', () => {
+  const app=prototype();
+  app.read('globalThis.zoomBounds={start:0,end:86400000*16};globalThis.zoomView={...zoomBounds}');
+  app.read("zoomView=chartViewport(zoomBounds,zoomView,'in')");
+  assert.equal(app.read('zoomView.end-zoomView.start'),86400000*8);
+  app.read("zoomView=chartViewport(zoomBounds,zoomView,'earlier')");
+  assert.equal(app.read('zoomView.start'),0);
+  app.read("zoomView=chartViewport(zoomBounds,zoomView,'earlier')");
+  assert.equal(app.read('zoomView.start'),0);
+  for(let i=0;i<6;i++)app.read("zoomView=chartViewport(zoomBounds,zoomView,'in')");
+  assert.equal(app.read('zoomView.end-zoomView.start'),86400000);
+  for(let i=0;i<40;i++)app.read("zoomView=chartViewport(zoomBounds,zoomView,'later')");
+  assert.equal(app.read('zoomView.end'),86400000*16);
+  app.read("zoomView=chartViewport(zoomBounds,zoomView,'out')");
+  assert.equal(app.read('zoomView.end-zoomView.start'),86400000*2);
+  app.read("zoomView=chartViewport(zoomBounds,zoomView,'reset')");
+  assert.equal(app.read('zoomView.start'),0);
+  assert.equal(app.read('zoomView.end'),86400000*16);
+});
+
+test('zoomed history preserves the preceding record and distinct runner colors', () => {
+  const app=prototype();
+  app.read(`globalThis.chartRuns=[
+    {id:'first',runner:'Fern',date:'2026-01-01',timeMs:100001},
+    {id:'second',runner:'Birch',date:'2026-01-10',timeMs:90002},
+    {id:'third',runner:'Fern',date:'2026-01-20',timeMs:80003}
+  ]`);
+  const fern=app.read("chartRunnerStyle('Fern')");
+  assert.notEqual(fern,app.read("chartRunnerStyle('Birch')"));
+  assert.equal(fern,app.read("chartRunnerStyle('Fern')"));
+  const chart=app.read("recordChart(chartRuns,'History','2026-01-30',{start:Date.parse('2026-01-12T00:00:00Z'),end:Date.parse('2026-01-16T00:00:00Z')})");
+  assert.doesNotMatch(chart,/NaN|Infinity|data-record=/);
+  assert.match(chart,/class="chart-line"/);
+  assert.doesNotMatch(chart,/class="chart-line" style=/);
+  assert.match(chart,/Scroll to zoom/);
+  assert.match(chart,/aria-label="Runners"/);
+  assert.match(chart,/Fern/);
+  assert.match(chart,/Birch/);
+  const single=app.read("recordChart([chartRuns[0]],'History','2026-01-01')");
+  assert.doesNotMatch(single,/NaN|Infinity/);
+  assert.doesNotMatch(single,/data-chart-action/);
+});
+
+test('wheel zoom anchors the cursor and drag pan clamps at the history edges', () => {
+  const app=prototype();
+  app.read('globalThis.bounds={start:0,end:86400000*16};globalThis.view={...bounds}');
+  app.read("view=chartViewport(bounds,view,'zoom',.5,.25)");
+  assert.equal(app.read('view.end-view.start'),86400000*8);
+  assert.equal(app.read('view.start+(view.end-view.start)*.25'),86400000*4);
+  app.read("view=chartViewport(bounds,view,'pan',1,.5,86400000)");
+  assert.equal(app.read('view.start'),86400000*3);
+  app.read("view=chartViewport(bounds,view,'pan',1,.5,-86400000*100)");
+  assert.equal(app.read('view.start'),0);
+  app.read("view=chartViewport(bounds,view,'pan',1,.5,86400000*100)");
+  assert.equal(app.read('view.end'),86400000*16);
+  app.read("view=chartViewport(bounds,view,'zoom',100,.8)");
+  assert.equal(app.read('view.start'),0);
+  assert.equal(app.read('view.end'),86400000*16);
+});
+
 function prototype(runs = [], mockFile = 'tests/fixtures/sample-data.js', enabled = true) {
   const elements = new Map();
   const element = selector => {
