@@ -218,3 +218,8 @@ html[data-theme="dark"] .runner-color-0{fill:#dfbc65}html[data-theme="dark"] .ru
 .pb-improvement{display:inline-flex;align-items:center;gap:7px;padding:5px 9px;border-radius:6px;background:#eaf2e2;color:#527640;font-size:12px;white-space:nowrap}
 .pb-improvement-value{font-family:Consolas,monospace;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
 html[data-theme="dark"] .pb-improvement{background:#2a402c;color:#b0d9a4}
+
+.run-heading{margin-bottom:22px;overflow-wrap:anywhere}
+.run-heading h3{margin:0;line-height:1.25}
+.run-heading .text-button{padding:0;font-size:26px;font-weight:700;letter-spacing:-.5px;color:var(--ink);text-align:left}
+.run-heading p{margin:7px 0 0;font-size:18px;font-weight:600;line-height:1.4;color:var(--muted)}
