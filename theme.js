@@ -8,7 +8,7 @@
   function apply() {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
-    document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#141b17' : '#f6f7f2';
+    document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#101112' : '#f6f7f2';
     const button = document.querySelector('#theme-toggle');
     if (button) {
       const next = theme === 'dark' ? 'light' : 'dark';
