@@ -81,8 +81,16 @@ function render(){
   if(state.page==='leaderboard')crumbs.push({label:currentCategory().name});
   document.querySelector('#breadcrumbs').innerHTML=crumbs.map((crumb,index)=>`<li>${index?'<span class="breadcrumb-separator" aria-hidden="true">/</span>':''}${index===crumbs.length-1?`<strong aria-current="page">${escapeHtml(crumb.label)}</strong>`:`<a href="${crumb.href}">${escapeHtml(crumb.label)}</a>`}</li>`).join('');
   document.querySelectorAll('[data-page]').forEach(link=>{const active=link.dataset.page===state.page||(link.dataset.page==='leaderboard'&&['levels','rules'].includes(state.page));link.classList.toggle('active',active);active?link.setAttribute('aria-current','page'):link.removeAttribute('aria-current');});
-  const openGroups=new Set(Array.from(document.querySelectorAll('#category-nav details[open]'),group=>group.dataset.group));
-  document.querySelector('#category-nav').innerHTML=groupedCategories(cat=>`<a href="#leaderboard/${cat.slug}" class="${state.page==='leaderboard'&&state.category===cat.slug?'selected':''}" ${state.page==='leaderboard'&&state.category===cat.slug?'aria-current="page"':''}>${cat.label}</a>`,openGroups)+levelNavigation(openGroups);
+  const categoryNav=document.querySelector('#category-nav');
+  if(!categoryNav.innerHTML)categoryNav.innerHTML=groupedCategories(cat=>`<a href="#leaderboard/${cat.slug}">${cat.label}</a>`,new Set())+levelNavigation(new Set());
+  categoryNav.querySelectorAll('summary').forEach(summary=>summary.classList.toggle('selected',summary.parentElement.dataset.group===(state.page==='levels'?'levels':state.page==='leaderboard'?currentCategory().group:null)));
+  categoryNav.querySelectorAll('a').forEach(link=>{
+    const active=state.page==='leaderboard'&&link.getAttribute('href')===`#leaderboard/${state.category}`;
+    link.classList.toggle('selected',active);
+    active?link.setAttribute('aria-current','page'):link.removeAttribute('aria-current');
+    const world=link.getAttribute('href').match(/^#levels\/(\d+)\//)?.[1];
+    if(world)link.setAttribute('href',`#levels/${world}/${world}-1/${state.levelCategory}`);
+  });
   document.querySelector('#account-button').textContent=saved.viewer?`${saved.viewer} ↗`:'Sign in ↗';
   if(state.page==='home')renderHome();
   else if(state.page==='leaderboard'||state.page==='levels')renderLeaderboard();
@@ -297,7 +305,7 @@ function setupRunDatePicker(){
 }
 function route(){
   if(location.hash==='#main')return;
-  window.scrollTo(0,0);
+  const previousPage=state.page;
   const [page,category,levelSlug,mode]=location.hash.slice(1).split('/');
   state.page=['leaderboard','levels','runners','stats','rules','my-runs'].includes(page)?page:'leaderboard';
   if(state.page==='stats'&&boards.some(board=>board.slug===category))state.statsBoard=category;
@@ -308,6 +316,7 @@ function route(){
     if(levelCategories.some(category=>category.slug===mode))state.levelCategory=mode;
     state.region='all';state.search='';
   }else if(category&&categories.some(c=>c.slug===category)){state.category=category;state.region='all';state.search='';}
+  if(state.page!==previousPage)window.scrollTo(0,0);
   render();
 }
 window.addEventListener('hashchange',route);route();

@@ -8,7 +8,7 @@ function prototype(runs = []) {
   const elements = new Map();
   const element = selector => {
     if (!elements.has(selector)) elements.set(selector, {
-      innerHTML: '', textContent: '', addEventListener() {},
+      innerHTML: '', textContent: '', addEventListener() {}, querySelectorAll: () => [],
       classList: {toggle() {}, add() {}, remove() {}},
     });
     return elements.get(selector);
@@ -18,13 +18,30 @@ function prototype(runs = []) {
     document: {querySelector: element, querySelectorAll: () => [], addEventListener() {}},
     localStorage: {getItem: () => JSON.stringify({runs, viewer: 'testfern'})},
     location: {hash: '#levels/1/1-1/any'},
-    window: {scrollTo() {}, addEventListener() {}},
+    window: {scrollTo() { this.scrollResets=(this.scrollResets||0)+1; }, addEventListener() {}},
   });
   for (const file of ['levels.js', 'app.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), context);
   }
   return {read: code => vm.runInContext(code, context), element};
 }
+
+test('category switches preserve sidebar nodes and scroll position', () => {
+  const app = prototype();
+  const nav = app.element('#category-nav');
+  const markup = nav.innerHTML;
+  Object.defineProperty(nav, 'innerHTML', {
+    get: () => markup,
+    set: () => { throw new Error('Sidebar must not be rebuilt on navigation'); },
+  });
+  app.read("location.hash='#leaderboard/no-ace';route()");
+  const resets = app.read('window.scrollResets');
+  app.read("location.hash='#leaderboard/reverse-boss-order';route()");
+  assert.equal(app.read('currentCategory().slug'), 'reverse-boss-order');
+  assert.equal(app.read('window.scrollResets'), resets);
+  app.read("location.hash='#runners';route()");
+  assert.equal(app.read('window.scrollResets'), resets + 1);
+});
 
 test('all 54 stages have independent Any% and 100% boards and working routes', () => {
   const app = prototype();
