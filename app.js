@@ -56,7 +56,7 @@ sampleRuns.push(...levelBoards.flatMap((board,c)=>runners.slice(0,4).map((runner
 const storageKey='yoshi-visual-prototype-v1';
 let saved={runs:[],viewer:''};
 try { const value=JSON.parse(localStorage.getItem(storageKey)); if(value&&Array.isArray(value.runs)){saved.runs=value.runs.filter(r=>r&&typeof r.runner==='string'&&boards.some(c=>c.slug===r.category)&&Number.isSafeInteger(r.timeMs)&&r.timeMs>0&&['pending','verified','rejected'].includes(r.status));saved.viewer=typeof value.viewer==='string'?value.viewer:'';} } catch {}
-let state={page:'leaderboard',category:categoryGroups[0].categories[0].slug,level:'1-1',levelCategory:'any',region:'all',search:''};
+let state={page:'leaderboard',category:categoryGroups[0].categories[0].slug,level:'1-1',levelCategory:'any',region:'all',search:'',statsBoard:'warpless',statsView:'chart'};
 const main=document.querySelector('main');
 const modal=document.querySelector('#modal');
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -75,7 +75,7 @@ function bestRuns(category,region='all'){
 function avatar(name,large=false){const runner=runners.find(r=>r.name===name);return `<span class="avatar${large?' large':''}" style="background:${runner?.color||'#e5edda'}">${escapeHtml(name.slice(0,2).toUpperCase())}</span>`;}
 function profileButton(name){return `<button class="runner-button" data-profile="${escapeHtml(name)}"><span>${escapeHtml(name)}<span class="runner-location">${escapeHtml(runners.find(r=>r.name===name)?.country||'Community runner')}</span></span></button>`;}
 function render(){
-  const sectionNames={leaderboard:'Leaderboards',levels:'Individual levels',runners:'Runners',rules:'Rules & resources','my-runs':'My submissions'};
+  const sectionNames={leaderboard:'Leaderboards',levels:'Individual levels',runners:'Runners',stats:'Stats',rules:'Rules & resources','my-runs':'My submissions'};
   const crumbs=[{label:'Yoshi’s Island',href:'#leaderboard'},{label:sectionNames[state.page],href:`#${state.page}`}];
   if(state.page==='levels'){const level=levels.find(level=>level.slug===state.level);crumbs.push({label:`World ${level.world}`,href:`#levels/${level.world}`},{label:`${level.slug}: ${level.name}`});}
   if(state.page==='leaderboard')crumbs.push({label:currentCategory().name});
@@ -87,6 +87,7 @@ function render(){
   if(state.page==='home')renderHome();
   else if(state.page==='leaderboard'||state.page==='levels')renderLeaderboard();
   else if(state.page==='runners')renderRunners();
+  else if(state.page==='stats')renderStats();
   else if(state.page==='rules')renderRules();
   else renderMyRuns();
 }
@@ -133,6 +134,56 @@ function renderLeaderboard(){
   <section class="panel"><h3>Recent verified runs</h3><div class="activity">${allRuns().filter(r=>r.status==='verified'&&r.category===cat.slug).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3).map(r=>`<div class="activity-row"><div><button class="text-button" data-profile="${escapeHtml(r.runner)}">${escapeHtml(r.runner)}</button><p>${formatTime(r.timeMs)} · ${cat.name}</p><small>${dateLabel(r.date)}</small></div></div>`).join('')}</div></section>
   </aside></div>`;
 
+}
+function speedrunStats(runs=allRuns()){
+  const verified=runs.filter(run=>run.status==='verified');
+  const levelSlugs=new Set(levelBoards.map(board=>board.slug));
+  const levelRuns=verified.filter(run=>levelSlugs.has(run.category)).length;
+  return {total:verified.length,fullGame:verified.length-levelRuns,levels:levelRuns,players:new Set(verified.map(run=>run.runner)).size,timeMs:verified.reduce((sum,run)=>sum+run.timeMs,0)};
+}
+function totalRunTime(ms){
+  const days=Math.floor(ms/86400000),hours=Math.floor(ms/3600000)%24,minutes=Math.floor(ms/60000)%60,seconds=Math.floor(ms/1000)%60;
+  return `${days}d ${hours}h ${minutes}m ${seconds}s ${ms%1000}ms`;
+}
+function recordProgression(category,runs=allRuns()){
+  // Dates have day precision: use the fastest verified run for each day.
+  const chronological=runs.filter(run=>run.status==='verified'&&run.category===category).sort((a,b)=>a.date.localeCompare(b.date)||a.timeMs-b.timeMs||a.id.localeCompare(b.id));
+  let record=Infinity;
+  return chronological.filter(run=>{if(run.timeMs>=record)return false;record=run.timeMs;return true;});
+}
+function statsDate(date){return new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});}
+function recordChart(records){
+  if(!records.length)return '<div class="empty"><h3>No verified runs yet</h3></div>';
+  const left=112,right=870,top=28,bottom=292;
+  const start=Date.parse(`${records[0].date}T00:00:00Z`),end=Math.max(Date.parse('2026-10-07T00:00:00Z'),Date.parse(`${records.at(-1).date}T00:00:00Z`),start+86400000);
+  const fastest=records.at(-1).timeMs,slowest=records[0].timeMs,padding=Math.max((slowest-fastest)*.15,slowest*.005,1);
+  const low=Math.max(0,fastest-padding),high=slowest+padding;
+  const x=date=>left+(Date.parse(`${date}T00:00:00Z`)-start)/(end-start)*(right-left);
+  const y=time=>bottom-(time-low)/(high-low)*(bottom-top);
+  let line=`M ${x(records[0].date)} ${y(records[0].timeMs)}`;
+  records.slice(1).forEach(run=>{line+=` H ${x(run.date)} V ${y(run.timeMs)}`;});
+  line+=` H ${right}`;
+  const grid=Array.from({length:5},(_,i)=>{const time=Math.round(high-(high-low)*i/4),cy=top+(bottom-top)*i/4;return `<line class="chart-grid" x1="${left}" y1="${cy}" x2="${right}" y2="${cy}"/><text class="chart-label" x="${left-14}" y="${cy+5}" text-anchor="end">${high-low<10000?formatTime(time):formatTime(time).replace(/\.\d{3}$/,'')}</text>`;}).join('');
+  const dates=Array.from({length:4},(_,i)=>{const timestamp=start+(end-start)*i/3,cx=left+(right-left)*i/3;return `<text class="chart-label" x="${cx}" y="${bottom+34}" text-anchor="${i===0?'start':i===3?'end':'middle'}">${new Date(timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})}</text>`;}).join('');
+  const points=records.map(run=>`<circle class="record-point runner-color-${Math.max(0,runners.findIndex(runner=>runner.name===run.runner))%6}" cx="${x(run.date)}" cy="${y(run.timeMs)}" r="5" tabindex="0" role="button" data-record="${escapeHtml(run.id)}" aria-label="${escapeHtml(`${run.runner}, ${formatTime(run.timeMs)}, ${statsDate(run.date)}. View run details`)}"><title>${escapeHtml(`${run.runner} · ${formatTime(run.timeMs)} · ${statsDate(run.date)}`)}</title></circle>`).join('');
+  return `<div class="record-chart-scroll"><svg class="record-chart" viewBox="0 0 900 350" role="group" aria-labelledby="record-chart-title record-chart-description"><title id="record-chart-title">World record progression</title><desc id="record-chart-description">${records.length} record improvements from ${statsDate(records[0].date)} to ${statsDate(records.at(-1).date)}. Time on the vertical axis and run date on the horizontal axis. Select a point for run details, or use List for all values.</desc>${grid}<path class="chart-area" d="${line} V ${bottom} H ${left} Z"/><path class="chart-line" d="${line}"/>${dates}${points}</svg></div>`;
+}
+function recordList(records){
+  if(!records.length)return '<div class="empty"><h3>No verified runs yet</h3></div>';
+  return `<div class="table-wrap"><table><caption class="sr-only">World record progression, oldest first</caption><thead><tr><th scope="col">DATE</th><th scope="col">RUNNER</th><th scope="col">TIME</th><th scope="col">IMPROVEMENT</th></tr></thead><tbody>${records.map((run,i)=>`<tr><td class="run-date">${statsDate(run.date)}</td><td>${profileButton(run.runner)}</td><td><button class="time-button" data-run="${escapeHtml(run.id)}">${formatTime(run.timeMs)}</button></td><td class="record-improvement">${i?`−${formatTime(records[i-1].timeMs-run.timeMs)}`:'—'}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function renderStats(){
+  const stats=speedrunStats(),board=boards.find(board=>board.slug===state.statsBoard)||categories[0],records=recordProgression(board.slug);
+  const options=categoryGroups.map(group=>`<optgroup label="${group.name}">${group.categories.map(category=>`<option value="${category.slug}" ${category.slug===board.slug?'selected':''}>${category.label}</option>`).join('')}</optgroup>`).join('')+Array.from({length:6},(_,i)=>`<optgroup label="Individual levels · World ${i+1}">${levelBoards.filter(level=>level.world===i+1).map(level=>`<option value="${level.slug}" ${level.slug===board.slug?'selected':''}>${escapeHtml(level.name)}</option>`).join('')}</optgroup>`).join('');
+  main.innerHTML=`<div class="page-heading"><div><h2>Stats</h2><p class="subtext">Verified runs · Sample data</p></div></div><dl class="stats-grid">${[['Total runs',stats.total],['Full game runs',stats.fullGame],['Level runs',stats.levels],['Total players',stats.players]].map(([label,value])=>`<div class="stat-card"><dt>${label}</dt><dd>${value.toLocaleString('en-US')}</dd></div>`).join('')}<div class="stat-card stat-duration"><dt>Total run time</dt><dd>${totalRunTime(stats.timeMs)}</dd></div></dl><section class="board stats-board" aria-labelledby="progression-title"><div class="stats-heading"><h3 id="progression-title">World record progression</h3><label class="stats-category">Category<select id="stats-category" aria-label="Category">${options}</select></label></div><div class="stats-toolbar"><div class="stats-views" role="group" aria-label="Progression view"><button type="button" data-stats-view="chart" aria-pressed="${state.statsView==='chart'}">Chart</button><button type="button" data-stats-view="list" aria-pressed="${state.statsView==='list'}">List</button></div><button type="button" class="button secondary" id="stats-csv" ${records.length?'':'disabled'}>Download CSV</button></div>${state.statsView==='list'?recordList(records):recordChart(records)}${records.length?`<div class="record-summary"><span>${records.length} records</span><span>Current record <button class="time-button" data-run="${escapeHtml(records.at(-1).id)}">${formatTime(records.at(-1).timeMs)}</button> · ${escapeHtml(records.at(-1).runner)}</span></div>`:''}</section>`;
+  document.querySelector('#stats-category').addEventListener('change',event=>{state.statsBoard=event.target.value;location.hash=`stats/${state.statsBoard}`;renderStats();});
+  document.querySelectorAll('[data-stats-view]').forEach(button=>button.addEventListener('click',()=>{state.statsView=button.dataset.statsView;renderStats();document.querySelector(`[data-stats-view="${state.statsView}"]`).focus();}));
+  document.querySelectorAll('[data-record]').forEach(point=>{point.addEventListener('click',()=>runDetails(point.dataset.record));point.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();runDetails(point.dataset.record);}});});
+  document.querySelector('#stats-csv').addEventListener('click',()=>{
+    const cell=value=>`"${String(value).replace(/^[=+@-]/,"'$&").replace(/"/g,'""')}"`;
+    const csv=[['Date','Runner','RTA time','RTA milliseconds','Improvement milliseconds'],...records.map((run,i)=>[run.date,run.runner,formatTime(run.timeMs),run.timeMs,i?records[i-1].timeMs-run.timeMs:''])].map(row=>row.map(cell).join(',')).join('\r\n');
+    const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download=`world-record-progression-${board.slug}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  });
 }
 function renderRunners(){main.innerHTML=`<div class="page-heading"><div><h2>Runners</h2></div><button class="button" data-submit>Submit a run</button></div><div class="runner-grid">${[...new Set(allRuns().filter(r=>r.status==='verified').map(r=>r.runner))].map(name=>`<button class="runner-card" data-profile="${escapeHtml(name)}">${avatar(name,true)}<span><strong>${escapeHtml(name)}</strong><p>${escapeHtml(runners.find(r=>r.name===name)?.country||'Community runner')}</p><p>${allRuns().filter(r=>r.runner===name&&r.status==='verified').length} verified runs <span aria-hidden="true">↗</span></p></span></button>`).join('')}</div>`;}
 function renderRules(){main.innerHTML=`${leaderboardNavigation()}<div class="page-heading"><h2>Rules</h2></div><section class="content-card">${categoryGroups.flatMap(group=>group.categories).map(board=>`<article class="rule-block"><h3>${board.name}</h3>${boardRulesButton(board)}</article>`).join('')}</section>`;}
@@ -248,7 +299,8 @@ function route(){
   if(location.hash==='#main')return;
   window.scrollTo(0,0);
   const [page,category,levelSlug,mode]=location.hash.slice(1).split('/');
-  state.page=['leaderboard','levels','runners','rules','my-runs'].includes(page)?page:'leaderboard';
+  state.page=['leaderboard','levels','runners','stats','rules','my-runs'].includes(page)?page:'leaderboard';
+  if(state.page==='stats'&&boards.some(board=>board.slug===category))state.statsBoard=category;
   if(state.page==='levels'){
     const world=Number(category);
     const level=levels.find(level=>level.slug===levelSlug&&level.world===world)||levels.find(level=>level.world===world)||levels.find(level=>level.slug===state.level);

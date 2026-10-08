@@ -55,6 +55,56 @@ test('all 54 stages have independent Any% and 100% boards and working routes', (
   assert.deepEqual(Array.from(app.read("bestRuns('100-percent').slice(0,3).map(run=>run.rank)")), [1,1,3]);
 });
 
+test('stats count verified histories and sum integer RTA across full-game and level runs', () => {
+  const app = prototype();
+  app.read(`globalThis.statsRuns=[
+    {category:'warpless',runner:'fern',timeMs:86400001,status:'verified'},
+    {category:'warpless',runner:'fern',timeMs:3600002,status:'verified'},
+    {category:'il-1-1-any',runner:'moss',timeMs:60003,status:'verified'},
+    {category:'warpless',runner:'pendingrunner',timeMs:1000,status:'pending'},
+    {category:'il-1-1-any',runner:'rejectedrunner',timeMs:2000,status:'rejected'}
+  ]`);
+  assert.deepEqual(JSON.parse(app.read('JSON.stringify(speedrunStats(statsRuns))')), {total:3,fullGame:2,levels:1,players:2,timeMs:90060006});
+  assert.equal(app.read('totalRunTime(90060006)'), '1d 1h 1m 0s 6ms');
+  assert.equal(app.read('speedrunStats([]).total'), 0);
+  assert.equal(app.read('totalRunTime(0)'), '0d 0h 0m 0s 0ms');
+});
+
+test('record progression ignores pending, rejected, tied and slower runs, and picks the fastest per day', () => {
+  const app = prototype();
+  app.read(`globalThis.history=[
+    {id:'last',category:'warpless',date:'2026-09-04',timeMs:800,runner:'moss',status:'verified',platform:'Emulator'},
+    {id:'same-day-slower',category:'warpless',date:'2026-09-02',timeMs:950,status:'verified'},
+    {id:'first',category:'warpless',date:'2026-09-01',timeMs:1000,status:'verified'},
+    {id:'same-day-fastest',category:'warpless',date:'2026-09-02',timeMs:900,status:'verified'},
+    {id:'tie',category:'warpless',date:'2026-09-03',timeMs:900,status:'verified'},
+    {id:'pending',category:'warpless',date:'2026-09-03',timeMs:700,status:'pending'},
+    {id:'rejected',category:'warpless',date:'2026-09-03',timeMs:600,status:'rejected'},
+    {id:'other-board',category:'warps',date:'2026-09-03',timeMs:500,status:'verified'},
+    {id:'slower',category:'warpless',date:'2026-09-05',timeMs:1100,status:'verified'}
+  ]`);
+  assert.deepEqual(Array.from(app.read("recordProgression('warpless',history).map(run=>run.id)")), ['first','same-day-fastest','last']);
+  assert.equal(app.read("recordProgression('no-ace',history).length"), 0);
+  assert.match(app.read('recordChart([])'), /No verified runs yet/);
+});
+
+test('stats routes render charts and lists for full-game and individual-level boards', () => {
+  const app = prototype();
+  app.read("location.hash='#stats/warpless';route()");
+  assert.equal(app.read('state.page'), 'stats');
+  assert.match(app.element('main').innerHTML, /Total players/);
+  assert.match(app.element('main').innerHTML, /record-chart-title/);
+  assert.doesNotMatch(app.element('main').innerHTML, /NaN|Infinity/);
+  app.read("location.hash='#stats/il-1-1-any';route()");
+  assert.equal(app.read('state.statsBoard'), 'il-1-1-any');
+  app.read("state.statsView='list';renderStats()");
+  assert.match(app.element('main').innerHTML, /IMPROVEMENT/);
+  assert.match(app.element('main').innerHTML, /world record progression, oldest first/i);
+  app.read("sampleRuns.length=0;state.statsView='chart';renderStats()");
+  assert.match(app.element('main').innerHTML, /No verified runs yet/);
+  assert.match(app.element('main').innerHTML, /id="stats-csv" disabled/);
+});
+
 test('seconds-only times normalize without rounding or accepting invalid seconds', () => {
   const app = prototype();
   for (const [input, expected] of [['24.123',24123],['9.5',9500],['0.001',1],['59.999',59999],['0:24.123',24123],['2:06:31.420',7591420]]) {
