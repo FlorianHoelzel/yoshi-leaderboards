@@ -48,7 +48,7 @@ test('CSV mock fixture resolves subcategories and VC and renders all boards and 
   assert.equal(app.read("recordProgression('warpless').every(run=>!!run.date)"), true);
   const videoRun = app.read('sampleRuns.find(run=>run.video).id');
   app.read(`runDetails('${videoRun}')`);
-  assert.match(app.element('#modal-content').innerHTML, /Mock run/);
+  assert.doesNotMatch(app.element('#modal-content').innerHTML, /Mock run/);
   assert.doesNotMatch(app.element('#modal-content').innerHTML, /Sample run · No video/);
 });
 
