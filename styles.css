@@ -58,8 +58,8 @@ html[data-theme="dark"] .egg-mark{background:#e8eddf}
 .category-nav .category-group-label:hover{background:#edf1e8}
 .category-nav .category-group-items{display:grid;gap:3px}
 .category-nav .category-group-items a{position:relative;padding-left:22px;font-weight:550}
-.category-nav .category-group-items a.selected{font-weight:550}
-.category-nav .category-group-items a.selected:before{position:absolute;left:10px;top:50%;transform:translateY(-50%);margin:0}
+.category-nav .category-group-items a.selected{background:var(--soft);font-weight:600}
+.category-nav .category-group-items a.selected:before{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:3px;height:16px;border-radius:2px;background:currentColor;margin:0}
 .subcategory-tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:0 20px;padding:7px 22px;border-bottom:1px solid var(--line);background:var(--soft)}
 .subcategory-tabs::-webkit-scrollbar{display:none}
 .board-filters{display:grid;grid-template-columns:minmax(0,2fr) minmax(88px,1fr);align-items:end;gap:14px 24px;padding:12px 22px;border-bottom:1px solid var(--line);background:var(--soft)}
