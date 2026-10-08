@@ -57,7 +57,7 @@ html[data-theme="dark"] .egg-mark{background:#e8eddf}
 .category-nav .category-group-label{display:block;padding:11px 12px;margin-bottom:5px;border:0;border-radius:8px;background:transparent;color:#6c786d;font-size:16px;font-weight:550;line-height:1.5}
 .category-nav .category-group-label:hover{background:#edf1e8}
 .category-nav .category-group-items{display:grid;gap:3px}
-.category-nav .category-group-items a{position:relative;padding-left:22px;font-weight:550}
+.category-nav .category-group-items a{position:relative;display:flex;align-items:center;min-height:44px;padding:10px 12px 12px 22px;line-height:20px;font-weight:550}
 .category-nav .category-group-items a.selected{background:var(--soft);font-weight:600}
 .category-nav .category-group-items a.selected:before{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:3px;height:16px;border-radius:2px;background:currentColor;margin:0}
 .subcategory-tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:0 20px;padding:7px 22px;border-bottom:1px solid var(--line);background:var(--soft)}
