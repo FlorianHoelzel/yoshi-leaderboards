@@ -83,6 +83,8 @@ html[data-theme="dark"] .egg-mark{background:#e8eddf}
 .breadcrumb a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .topbar{gap:20px}
 .top-actions{flex-shrink:0}
+.nav-submit{padding:7px 11px;white-space:nowrap}
+@media(max-width:760px){.topbar{flex-wrap:wrap}.top-actions{margin-left:auto}}
 @media(max-width:760px){.topbar{height:auto;min-height:55px;padding-top:12px;padding-bottom:12px}.breadcrumb .breadcrumb-separator{margin:0 7px}}
 .category-group-label{color:var(--muted);font-size:13px;font-weight:600}
 .category-nav{gap:14px}
