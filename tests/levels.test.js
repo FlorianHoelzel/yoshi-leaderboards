@@ -43,6 +43,8 @@ test('CSV mock fixture resolves subcategories and VC and renders all boards and 
     assert.doesNotMatch(app.element('main').innerHTML, /Invalid Date|NaN|undefined/);
   }
   assert.equal(app.read("dateLabel('')"), 'Unknown date');
+  assert.match(app.read('levelSelector(levelBoards[0])'), />1-E<\/a>/);
+  assert.doesNotMatch(app.read('levelSelector(levelBoards[0])'), /· Extra/);
   assert.equal(app.read("recordProgression('warpless').every(run=>!!run.date)"), true);
   const videoRun = app.read('sampleRuns.find(run=>run.video).id');
   app.read(`runDetails('${videoRun}')`);
@@ -56,8 +58,8 @@ test('disabling or removing mock data retains local submissions and empty boards
     const app = prototype([local], file, enabled);
     assert.equal(app.read('sampleRuns.length'), 0);
     assert.equal(app.read('allRuns().length'), 1);
-    assert.equal(app.read("bestRuns('warpless')[0].id"), 'demo-kept');
-    assert.equal(app.read("bestRuns('warpless')[0].platform"), 'VC');
+    assert.equal(app.read("bestRuns('warpless','all','vc')[0].id"), 'demo-kept');
+    assert.equal(app.read("bestRuns('warpless','all','vc')[0].platform"), 'VC');
     app.read("location.hash='#leaderboard/warps';route()");
     assert.match(app.element('main').innerHTML, /No verified runs yet/);
     app.read('renderStats()');
@@ -171,6 +173,54 @@ test('seconds-only times normalize without rounding or accepting invalid seconds
   for (const input of ['60.123','24.1234','-1.000','0.000','1:60.000']) {
     assert.equal(app.read(`parseTime(${JSON.stringify(input)})`), null);
   }
+});
+
+test('time display hides only zero milliseconds and dates include the year', () => {
+  const app = prototype();
+  for (const [ms, text] of [[0,'0:00'],[24123,'0:24.123'],[60000,'1:00'],[6124000,'1:42:04'],[6124001,'1:42:04.001'],[6124100,'1:42:04.100']]) {
+    assert.equal(app.read(`formatTime(${ms})`), text);
+  }
+  assert.equal(app.read("dateLabel('2019-03-04')"), 'Mar 4, 2019');
+  assert.equal(app.read("dateLabel('')"), 'Unknown date');
+  assert.doesNotMatch(app.read("profileButton('testfern')"), /Community runner|runner-location/);
+  app.read("runners.push({name:'testfern',country:'Canada'})");
+  assert.match(app.read("profileButton('testfern')"), /Canada/);
+});
+
+test('VC has independent ranks, PBs, record history and shareable full-game/level routes', () => {
+  const base = {runner:'testfern',category:'warpless',timeMs:60000,date:'2026-10-01',status:'verified'};
+  const app = prototype([
+    {...base,id:'snes-pb',platform:'SNES'},
+    {...base,id:'emulator-tie',runner:'testmoss',platform:'Emulator'},
+    {...base,id:'snes-third',runner:'testorbit',platform:'SNES',timeMs:70000},
+    {...base,id:'vc-pb',platform:'VC',timeMs:50000},
+    {...base,id:'vc-tie',runner:'testmoss',platform:'VC',timeMs:50000},
+    {...base,id:'vc-third',runner:'testorbit',platform:'VC',timeMs:55000},
+    {...base,id:'vc-level',category:'il-1-1-any',platform:'VC',timeMs:1000},
+  ], null);
+  assert.deepEqual(Array.from(app.read("bestRuns('warpless').map(run=>run.rank)")), [1,1,3]);
+  app.read("location.hash='#leaderboard/warpless?platform=vc';route()");
+  assert.equal(app.read('state.platform'), 'vc');
+  assert.deepEqual(Array.from(app.read("bestRuns('warpless').map(run=>run.rank)")), [1,1,3]);
+  assert.equal(app.read("bestRuns('warpless')[0].id"), 'vc-pb');
+  assert.match(app.element('main').innerHTML, /data-platform="vc" aria-pressed="true"/);
+  assert.doesNotMatch(app.element('main').innerHTML, /snes-pb|emulator-tie/);
+  app.read("location.hash='#stats/warpless?platform=vc';route()");
+  assert.deepEqual(Array.from(app.read("recordProgression('warpless').map(run=>run.id)")), ['vc-pb']);
+  app.read("profile('testfern')");
+  assert.match(app.element('#modal-content').innerHTML, /warpless:|Warpless/);
+  assert.match(app.element('#modal-content').innerHTML, /snes-pb/);
+  assert.match(app.element('#modal-content').innerHTML, /vc-pb/);
+  assert.doesNotMatch(app.element('#modal-content').innerHTML, /Community runner/);
+  app.read("runDetails('snes-pb')");
+  assert.match(app.element('#modal-content').innerHTML, /<dd>#1<\/dd>/);
+  app.read("location.hash='#levels/1/1-1/any?platform=vc';route()");
+  assert.equal(app.read("bestRuns('il-1-1-any')[0].id"), 'vc-level');
+  assert.match(app.read('levelSelector(currentCategory())'), /#levels\/1\/1-1\/100\?platform=vc/);
+  assert.equal(app.read('boardHref(currentCategory())'), '#levels/1/1-1/any?platform=vc');
+  app.read("location.hash='#leaderboard/warpless';route()");
+  assert.equal(app.read('state.platform'), 'snes');
+  assert.equal(app.read("bestRuns('warpless').find(run=>run.runner==='testfern').id"), 'snes-pb');
 });
 
 test('video embeds use recognized recording URLs and the current Twitch parent domain', () => {
