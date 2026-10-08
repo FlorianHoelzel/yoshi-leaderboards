@@ -2,7 +2,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
-const assets = {'/':'index.html','/index.html':'index.html','/styles.css':'styles.css','/app.js':'app.js','/levels.js':'levels.js','/theme.js':'theme.js','/island.svg':'island.svg'};
+const assets = {'/':'index.html','/index.html':'index.html','/styles.css':'styles.css','/app.js':'app.js','/mock-data.js':'mock-data.js','/levels.js':'levels.js','/theme.js':'theme.js','/island.svg':'island.svg'};
 const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml'};
 const server=http.createServer((req,res)=>{
   const file=assets[new URL(req.url,'http://localhost').pathname];

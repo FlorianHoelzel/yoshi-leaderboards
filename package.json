@@ -2,5 +2,11 @@
   "name": "yoshi-leaderboards-prototype",
   "version": "0.1.0",
   "private": true,
-  "scripts": { "start": "node serve.js", "build": "node build.js", "check": "node --check levels.js && node --check app.js && node --check theme.js && node --check serve.js && node --check build.js", "test": "node --test" }
+  "scripts": {
+    "start": "node serve.js",
+    "build": "node build.js",
+    "check": "node --check levels.js && node --check app.js && node --check theme.js && node --check serve.js && node --check build.js && node --check scripts/import-mock-data.js",
+    "test": "node --test",
+    "mock:import": "node scripts/import-mock-data.js"
+  }
 }

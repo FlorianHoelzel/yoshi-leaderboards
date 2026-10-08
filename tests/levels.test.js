@@ -4,12 +4,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function prototype(runs = []) {
+function prototype(runs = [], mockFile = 'tests/fixtures/sample-data.js', enabled = true) {
   const elements = new Map();
   const element = selector => {
     if (!elements.has(selector)) elements.set(selector, {
       innerHTML: '', textContent: '', addEventListener() {}, querySelectorAll: () => [],
-      classList: {toggle() {}, add() {}, remove() {}},
+      classList: {toggle() {}, add() {}, remove() {}}, showModal() {},
     });
     return elements.get(selector);
   };
@@ -20,11 +20,50 @@ function prototype(runs = []) {
     location: {hash: '#levels/1/1-1/any'},
     window: {scrollTo() { this.scrollResets=(this.scrollResets||0)+1; }, addEventListener() {}},
   });
-  for (const file of ['levels.js', 'app.js']) {
+  for (const file of ['levels.js', mockFile, 'app.js'].filter(Boolean)) {
+    if (file === 'app.js' && !enabled) vm.runInContext('globalThis.YOSHI_MOCK_DATA.enabled=false', context);
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), context);
   }
   return {read: code => vm.runInContext(code, context), element};
 }
+
+test('CSV mock fixture resolves subcategories and VC and renders all boards and stats', {skip:!fs.existsSync(path.join(__dirname, '..', 'mock-data.js'))}, () => {
+  const app = prototype([], 'mock-data.js');
+  assert.equal(app.read('sampleRuns.length'), 2441);
+  assert.equal(app.read("sampleRuns.filter(run=>run.platform==='VC').length"), 156);
+  assert.equal(app.read("sampleRuns.find(run=>run.sourceRunId==='pm3dw56z').category"), 'magical-journey');
+  assert.equal(app.read('sampleRuns.every(run=>Number.isSafeInteger(run.timeMs)&&run.timeMs>0&&run.sample)'), true);
+  assert.equal(app.read('new Set(sampleRuns.map(run=>run.id)).size'), 2441);
+  assert.equal(app.read('sampleRuns.every(run=>boards.some(board=>board.slug===run.category))'), true);
+  for (const slug of Array.from(app.read('categories.map(category=>category.slug)'))) {
+    app.read(`location.hash='#leaderboard/${slug}';route()`);
+    assert.doesNotMatch(app.element('main').innerHTML, /Invalid Date|NaN|undefined/);
+    assert.equal(app.read(`bestRuns('${slug}').every(run=>run.status==='verified')`), true);
+    app.read(`state.statsBoard='${slug}';renderStats()`);
+    assert.doesNotMatch(app.element('main').innerHTML, /Invalid Date|NaN|undefined/);
+  }
+  assert.equal(app.read("dateLabel('')"), 'Unknown date');
+  assert.equal(app.read("recordProgression('warpless').every(run=>!!run.date)"), true);
+  const videoRun = app.read('sampleRuns.find(run=>run.video).id');
+  app.read(`runDetails('${videoRun}')`);
+  assert.match(app.element('#modal-content').innerHTML, /Mock run/);
+  assert.doesNotMatch(app.element('#modal-content').innerHTML, /Sample run · No video/);
+});
+
+test('disabling or removing mock data retains local submissions and empty boards work', () => {
+  const local = {id:'demo-kept',runner:'testfern',category:'warpless',timeMs:60000,date:'2026-10-01',status:'verified',platform:'VC'};
+  for (const [file, enabled] of [['tests/fixtures/sample-data.js', false], [null, true]]) {
+    const app = prototype([local], file, enabled);
+    assert.equal(app.read('sampleRuns.length'), 0);
+    assert.equal(app.read('allRuns().length'), 1);
+    assert.equal(app.read("bestRuns('warpless')[0].id"), 'demo-kept');
+    assert.equal(app.read("bestRuns('warpless')[0].platform"), 'VC');
+    app.read("location.hash='#leaderboard/warps';route()");
+    assert.match(app.element('main').innerHTML, /No verified runs yet/);
+    app.read('renderStats()');
+    assert.doesNotMatch(app.element('main').innerHTML, /NaN|undefined/);
+  }
+});
 
 test('category switches preserve sidebar nodes and scroll position', () => {
   const app = prototype();
