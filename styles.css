@@ -79,22 +79,23 @@ html[data-theme="dark"] .platform-tabs button[aria-pressed="true"]>span{border-b
 @media(max-width:760px){.board-filters{padding:12px 16px}.stats-platform{padding-left:16px;padding-right:16px}}
 .leaderboard-table{table-layout:fixed;min-width:640px}
 .leaderboard-table .rank-column{width:8%}
-.leaderboard-table .runner-column{width:24%}
-.leaderboard-table .time-column{width:19%}
-.leaderboard-table .platform-column{width:13%}
+.leaderboard-table .runner-column{width:28%}
+.leaderboard-table .time-column{width:22%}
+.leaderboard-table .platform-column{width:14%}
 .leaderboard-table .region-column{width:12%}
-.leaderboard-table .date-column{width:24%}
+.leaderboard-table .date-column{width:16%}
 
 .leaderboard-table :is(th,td){padding-left:12px;padding-right:12px}
 .leaderboard-table :is(th,td):first-child{padding-left:22px}
+.leaderboard-table :is(th,td):last-child{text-align:right;padding-right:22px}
 .leaderboard-table .runner-button{max-width:100%}
 .leaderboard-table .runner-button>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 html{scrollbar-gutter:stable}
 main{overflow-anchor:none}
 @media(max-width:1200px){.leaderboard-table{min-width:562px}.leaderboard-table .region-column{display:none}}
 @media(max-width:760px){.leaderboard-table{min-width:476px}.leaderboard-table .platform-column{display:none}}
-@media(max-width:1200px) and (min-width:761px){.leaderboard-table .rank-column{width:9%}.leaderboard-table .runner-column{width:28%}.leaderboard-table .time-column{width:21%}.leaderboard-table .platform-column{width:14%}.leaderboard-table .date-column{width:28%}}
-@media(max-width:760px){.leaderboard-table .rank-column{width:10%}.leaderboard-table .runner-column{width:30%}.leaderboard-table .time-column{width:26%}.leaderboard-table .date-column{width:34%}}
+@media(max-width:1200px) and (min-width:761px){.leaderboard-table .rank-column{width:9%}.leaderboard-table .runner-column{width:33%}.leaderboard-table .time-column{width:24%}.leaderboard-table .platform-column{width:15%}.leaderboard-table .date-column{width:19%}}
+@media(max-width:760px){.leaderboard-table .rank-column{width:10%}.leaderboard-table .runner-column{width:36%}.leaderboard-table .time-column{width:28%}.leaderboard-table .date-column{width:26%}}
 @media(max-width:420px){.board-filters{grid-template-columns:minmax(0,1fr)}}
 .subcategory-tabs :is(button,a){flex:none;white-space:nowrap}
 .subcategory-tabs button{background:transparent;color:var(--muted);font-size:14px;padding:8px 0;border-bottom:2px solid transparent}
