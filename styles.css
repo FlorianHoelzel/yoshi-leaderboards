@@ -157,7 +157,7 @@ html[data-theme="dark"] :is(.category-tabs a.active,.subcategory-tabs a.active){
 .record-chart-scroll{overflow-x:auto;padding:4px 16px 0}
 .record-chart{display:block;width:100%;min-width:560px}
 .chart-grid{stroke:var(--line);stroke-width:1}
-.chart-label{fill:var(--muted);font-size:14px;font-family:"Segoe UI",Arial,sans-serif;font-variant-numeric:tabular-nums}
+.chart-label{fill:var(--muted);font-size:12px;font-family:"Segoe UI",Arial,sans-serif;font-variant-numeric:tabular-nums}
 .chart-area{fill:var(--green);fill-opacity:.1}
 .chart-line{fill:none;stroke:var(--green);stroke-width:2;stroke-linejoin:round}
 .record-point{stroke:var(--surface);stroke-width:2;cursor:pointer;fill:var(--green)}
