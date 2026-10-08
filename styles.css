@@ -106,14 +106,14 @@ html[data-theme="dark"] .subcategory-tabs button.active{color:#a6d69b;border-bot
 .subcategory-tabs a{padding:8px 0;color:var(--muted);font-size:14px;border-bottom:2px solid transparent}
 .category-tabs a.active,.subcategory-tabs a.active{color:var(--green);font-weight:700;border-bottom-color:var(--green)}
 .category-tabs a:hover,.subcategory-tabs a:hover{color:var(--ink)}
-.level-heading{padding:18px 22px 10px;display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.level-heading{padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .level-heading h3{font-size:18px;margin:0;overflow-wrap:anywhere}
 .category-nav .category-group-label.selected:before{display:none}
 .category-nav .category-group-label.selected{background:#e7eedf;color:#356643;font-weight:550}
 html[data-theme="dark"] .category-nav .category-group-label{color:var(--muted)}
 html[data-theme="dark"] .category-nav .category-group-label:hover,html[data-theme="dark"] .category-nav .category-group-label.selected{background:var(--soft);color:var(--ink)}
 html[data-theme="dark"] :is(.category-tabs a.active,.subcategory-tabs a.active){color:#a6d69b;border-bottom-color:#a6d69b}
-@media(max-width:760px){.level-heading{padding:16px 16px 10px}.level-tabs{gap:0 18px}}
+@media(max-width:760px){.level-heading{padding:13px 16px}.level-tabs{gap:0 18px}}
 @media(max-width:760px){.category-nav{display:grid;margin-top:14px}}
 
 /* Collapsed category menus and shared leaderboard navigation. */
