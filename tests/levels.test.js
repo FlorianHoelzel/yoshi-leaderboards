@@ -14,14 +14,30 @@ test('history chart zoom clamps date ranges, pans and resets', () => {
   app.read("zoomView=chartViewport(zoomBounds,zoomView,'earlier')");
   assert.equal(app.read('zoomView.start'),0);
   for(let i=0;i<6;i++)app.read("zoomView=chartViewport(zoomBounds,zoomView,'in')");
-  assert.equal(app.read('zoomView.end-zoomView.start'),86400000);
+  assert.equal(app.read('zoomView.end-zoomView.start'),86400000*7);
   for(let i=0;i<40;i++)app.read("zoomView=chartViewport(zoomBounds,zoomView,'later')");
   assert.equal(app.read('zoomView.end'),86400000*16);
   app.read("zoomView=chartViewport(zoomBounds,zoomView,'out')");
-  assert.equal(app.read('zoomView.end-zoomView.start'),86400000*2);
+  assert.equal(app.read('zoomView.end-zoomView.start'),86400000*14);
   app.read("zoomView=chartViewport(zoomBounds,zoomView,'reset')");
   assert.equal(app.read('zoomView.start'),0);
   assert.equal(app.read('zoomView.end'),86400000*16);
+});
+
+test('history zoom caps long histories and preserves short histories', () => {
+  const app=prototype();
+  app.read('globalThis.bounds={start:0,end:86400000*10000};globalThis.view={...bounds}');
+  for(let i=0;i<30;i++)app.read("view=chartViewport(bounds,view,'zoom',.1,.25)");
+  assert.equal(app.read('(bounds.end-bounds.start)/(view.end-view.start)'),100);
+  const capped=app.read('JSON.stringify(view)');
+  app.read("view=chartViewport(bounds,view,'in')");
+  assert.equal(app.read('JSON.stringify(view)'),capped);
+  app.read("view=chartViewport(bounds,view,'pan',1,.5,86400000*100000)");
+  assert.equal(app.read('view.end'),app.read('bounds.end'));
+  app.read('bounds={start:0,end:86400000*3};view={...bounds}');
+  app.read("view=chartViewport(bounds,view,'zoom',.001,1)");
+  assert.equal(app.read('view.start'),0);
+  assert.equal(app.read('view.end'),86400000*3);
 });
 
 test('zoomed history preserves the preceding record and distinct runner colors', () => {
@@ -220,7 +236,7 @@ test('stats routes render charts and lists for full-game and individual-level bo
   assert.match(app.element('main').innerHTML, /world record progression, oldest first/i);
   app.read("sampleRuns.length=0;state.statsView='chart';renderStats()");
   assert.match(app.element('main').innerHTML, /No verified runs yet/);
-  assert.match(app.element('main').innerHTML, /id="stats-csv" disabled/);
+  assert.doesNotMatch(app.element('main').innerHTML, /stats-csv|Download CSV/);
 });
 
 test('seconds-only times normalize without rounding or accepting invalid seconds', () => {
