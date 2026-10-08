@@ -208,9 +208,9 @@ test('VC has independent ranks, PBs, record history and shareable full-game/leve
   app.read("location.hash='#stats/warpless?platform=vc';route()");
   assert.deepEqual(Array.from(app.read("recordProgression('warpless').map(run=>run.id)")), ['vc-pb']);
   app.read("profile('testfern')");
-  assert.match(app.element('#modal-content').innerHTML, /warpless:|Warpless/);
-  assert.match(app.element('#modal-content').innerHTML, /snes-pb/);
-  assert.match(app.element('#modal-content').innerHTML, /vc-pb/);
+  assert.match(app.element('#profile-content').innerHTML, /warpless:|Warpless/);
+  assert.match(app.element('#profile-content').innerHTML, /snes-pb/);
+  assert.match(app.element('#profile-content').innerHTML, /vc-pb/);
   assert.doesNotMatch(app.element('#modal-content').innerHTML, /Community runner/);
   app.read("runDetails('snes-pb')");
   assert.match(app.element('#modal-content').innerHTML, /<dd>#1<\/dd>/);
@@ -221,6 +221,61 @@ test('VC has independent ranks, PBs, record history and shareable full-game/leve
   app.read("location.hash='#leaderboard/warpless';route()");
   assert.equal(app.read('state.platform'), 'snes');
   assert.equal(app.read("bestRuns('warpless').find(run=>run.runner==='testfern').id"), 'snes-pb');
+});
+
+test('profiles separate boards and platforms, paginate history and exclude undated runs from progression', () => {
+  const base={runner:'testfern',category:'warpless',platform:'SNES',status:'verified',date:'2026-09-01',timeMs:60000};
+  const runs=Array.from({length:12},(_,index)=>({...base,id:`history-${index}`,date:`2026-09-${String(index+1).padStart(2,'0')}`,timeMs:60000-index*1000}));
+  runs.push({...base,id:'vc-run',platform:'VC',timeMs:40000}, {...base,id:'il-run',category:'il-1-1-any',timeMs:1000}, {...base,id:'undated',date:'',timeMs:30000}, {...base,id:'pending',status:'pending',timeMs:100});
+  const app=prototype(runs,null);
+  app.read("profile('testfern')");
+  assert.match(app.element('#modal-content').innerHTML, /<dd>15<\/dd>/);
+  assert.match(app.element('#profile-content').innerHTML, /undated/);
+  assert.match(app.element('#profile-content').innerHTML, /vc-run/);
+  app.read("profileState.type='levels';renderProfileContent()");
+  assert.match(app.element('#profile-content').innerHTML, /il-run/);
+  assert.doesNotMatch(app.element('#profile-content').innerHTML, /vc-run|undated/);
+  app.read("profileState.type='full';profileState.platform='snes';profileState.view='history';renderProfileContent()");
+  assert.equal((app.element('#profile-content').innerHTML.match(/data-run=/g)||[]).length,10);
+  assert.match(app.element('#profile-content').innerHTML, /1-10 of 13 runs/);
+  app.read('profileState.page=1;renderProfileContent()');
+  assert.equal((app.element('#profile-content').innerHTML.match(/data-run=/g)||[]).length,3);
+  assert.match(app.element('#profile-content').innerHTML, /Unknown date/);
+  app.read("profileState.view='progress';renderProfileContent()");
+  assert.match(app.element('#profile-content').innerHTML, /Personal best progression/);
+  assert.doesNotMatch(app.element('#profile-content').innerHTML, /data-run="undated"|NaN|Invalid Date/);
+  assert.equal(app.read("profileProgression(profileData('testfern').runs,'warpless','snes').length"),12);
+  app.read("profile('emptyrunner')");
+  assert.match(app.element('#profile-content').innerHTML, /No verified PBs/);
+});
+
+test('personal progression ignores ties, slower runs and slower same-day entries', () => {
+  const app=prototype([],null);
+  app.read(`globalThis.profileRuns=[
+    {id:'slow-first-day',category:'warpless',platform:'SNES',date:'2026-09-01',timeMs:1200},
+    {id:'first',category:'warpless',platform:'Emulator',date:'2026-09-01',timeMs:1000},
+    {id:'tie',category:'warpless',platform:'SNES',date:'2026-09-02',timeMs:1000},
+    {id:'slower',category:'warpless',platform:'SNES',date:'2026-09-03',timeMs:1100},
+    {id:'better',category:'warpless',platform:'SNES',date:'2026-09-04',timeMs:900},
+    {id:'vc',category:'warpless',platform:'VC',date:'2026-09-05',timeMs:800}
+  ]`);
+  assert.deepEqual(Array.from(app.read("profileProgression(profileRuns,'warpless','snes').map(run=>run.id)")),['first','better']);
+});
+
+test('large PB collections are paginated and profile return preserves filters and page', () => {
+  const runs=Array.from({length:14},(_,index)=>({id:`pb-${index}`,runner:'testfern',category:`il-1-${Math.floor(index/2)+1}-${index%2?'100':'any'}`,platform:'SNES',status:'verified',date:'2026-09-01',timeMs:1000+index}));
+  const app=prototype(runs,null);
+  app.read("profile('testfern')");
+  assert.equal((app.element('#profile-content').innerHTML.match(/data-run=/g)||[]).length,12);
+  assert.match(app.element('#profile-content').innerHTML,/1-12 of 14 PBs/);
+  app.read("profileState.page=1;profileState.type='levels';profileState.platform='snes';renderProfileContent()");
+  app.element('#modal').open=true;
+  app.read("runDetails('pb-13')");
+  assert.match(app.element('#modal-content').innerHTML,/Back to profile/);
+  app.read("profile('testfern',true)");
+  assert.match(app.element('#profile-content').innerHTML,/13-14 of 14 PBs/);
+  assert.equal(app.element('#profile-type').value,'levels');
+  assert.equal(app.element('#profile-platform').value,'snes');
 });
 
 test('video embeds use recognized recording URLs and the current Twitch parent domain', () => {
