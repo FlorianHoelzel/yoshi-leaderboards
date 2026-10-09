@@ -126,7 +126,7 @@ test('runner directory counts PBs separately from histories, preserves tied #1s 
   assert.deepEqual(read({sort:'runs'}).map(entry=>entry.name),['Fern','Birch']);
 });
 
-test('runner directory renders filtered counts, profile and run links without avatars', () => {
+test('runner directory renders filtered counts and profile rows without avatars', () => {
   const app=prototype();
   app.read('renderRunners()');
   assert.match(app.element('main').innerHTML,/Board type/);
@@ -135,7 +135,8 @@ test('runner directory renders filtered counts, profile and run links without av
   const markup=app.element('#runner-results').innerHTML;
   assert.match(markup,/PERSONAL BESTS/);
   assert.match(markup,/data-profile="aura"/);
-  assert.match(markup,/data-run="sample-0-0"/);
+  assert.match(markup,/<tr data-profile-row="aura">/);
+  assert.match(markup,/<button type="button" class="runner-latest" data-run="sample-0-0">/);
   assert.doesNotMatch(markup,/avatar|runner-card|NaN|undefined/);
   assert.ok(markup.indexOf('data-profile="aura"')<markup.indexOf('data-profile="puddles"'));
   app.read("state.runnerType='levels';state.runnerSearch=' ORBIT ';renderRunnerResults()");
