@@ -45,6 +45,8 @@ The frontend uses native HTML, CSS, and JavaScript with an original decorative S
 
 ## Removable mock data
 
+The Elo navigation tab lists runners by one overall PB-based Elo rating combining verified PB comparisons across full-game, individual-level, and platform boards. It shows global rank, rating status, strongest PB, latest verified run, and PB count, with search and pagination. Profiles have a separate Elo tab beside Run history with overall rating, rank, and contributing PBs; the Runners directory remains separate. Ratings remain global when searching and update from locally verified submissions. See [docs/ratings.md](docs/ratings.md) for the formula, weighting, provisional status, and limitations.
+
 Imported mock runs live in `data/mock-runs.json`. The build and optional local server turn this JSON into a browser fixture. Browser submissions remain separate under `yoshi-visual-prototype-v1`; the fictional records are used only by tests.
 
 - Disable mock records by setting `"enabled": false` in the JSON file.

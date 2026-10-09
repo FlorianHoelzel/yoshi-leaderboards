@@ -17,11 +17,18 @@ dialog:has(.runner-profile){width:min(940px,calc(100% - 32px));background:var(--
 .runner-identity{margin-bottom:24px}
 .runner-identity h3{font-size:32px;line-height:1.2;letter-spacing:-.7px;margin:0;overflow-wrap:anywhere}
 .runner-identity p{margin:6px 0 0;font-size:13px;color:var(--ink)}
-.profile-summary{display:flex;gap:32px;margin:0 0 26px;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.profile-summary{display:flex;flex-wrap:wrap;gap:24px 32px;margin:0 0 26px;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .profile-summary dt{font-size:13px}.profile-summary dd{margin:4px 0 0;font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}
-.profile-views{display:flex;gap:26px;border-bottom:1px solid var(--line)}
+.profile-views{display:flex;gap:26px;overflow-x:auto;border-bottom:1px solid var(--line)}
 .profile-views button{background:transparent;color:var(--ink);padding:10px 0;font-size:14px;border-bottom:2px solid transparent;white-space:nowrap}
 .profile-views button[aria-pressed="true"]{border-color:var(--green);font-weight:700}
+.profile-elo-summary{display:flex;gap:32px;margin:0 0 20px}
+.profile-elo-summary dt{font-size:13px;color:var(--muted)}
+.profile-elo-summary dd{margin:4px 0 0;font-size:22px;font-weight:650;font-variant-numeric:tabular-nums}
+.profile-elo-heading{margin:0 0 12px;font-size:15px}
+.profile-elo-table{min-width:660px}
+.profile-elo-table td:first-child{min-width:190px;white-space:normal}
+.profile-elo-table td{font-variant-numeric:tabular-nums}
 .profile-filters{display:flex;gap:16px;padding:20px 0}
 .profile-filters label,.profile-progress-select{display:grid;gap:5px;font-size:13px;min-width:0}
 .profile-filters select,.profile-progress-select select{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:8px 10px;max-width:100%;min-width:0}
@@ -292,6 +299,42 @@ html[data-theme="dark"] .pb-improvement{background:#2a402c;color:#b0d9a4}
 .runner-directory-table th{letter-spacing:.5px;white-space:normal;line-height:1.4}
 .runner-directory-table td{padding-top:18px;padding-bottom:18px;vertical-align:middle}
 .runner-directory-table .runner-button{overflow-wrap:anywhere}
+.elo-status{display:block;margin-top:4px;color:var(--muted);font-size:11px;font-weight:400}
+.profile-summary .elo-status{font-size:12px}
+.elo-help-button{flex:none}
+dialog:has(.elo-help){width:min(780px,calc(100% - 32px))}
+.elo-help{font-size:14px;line-height:1.65}
+.elo-help section+section{margin-top:24px}
+.elo-help h3{margin:0 0 8px;color:var(--ink);font-size:16px}
+.elo-help p{margin:8px 0;color:var(--muted)}
+.elo-help-formula{margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
+.elo-help-formula summary{cursor:pointer;font-weight:650}
+.elo-help pre{padding:16px;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere;border-radius:6px;background:var(--soft);color:var(--ink);font:12px/1.65 Consolas,"Courier New",monospace}
+.elo-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:22px}
+.elo-toolbar label{display:grid;gap:7px;width:320px;max-width:100%;color:var(--muted);font-size:13px}
+.elo-toolbar input{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)}
+.elo-table{table-layout:fixed;min-width:900px}
+.elo-table :is(th,td):first-child{width:7%;padding-left:22px}
+.elo-table :is(th,td):nth-child(2){width:18%}
+.elo-table :is(th,td):nth-child(3){width:12%}
+.elo-table :is(th,td):nth-child(4),.elo-table :is(th,td):nth-child(5){width:27%}
+.elo-table :is(th,td):last-child{width:9%}
+.elo-table th{white-space:normal;letter-spacing:.5px}
+.elo-table td{vertical-align:top;padding-top:18px;padding-bottom:18px}
+.elo-table .runner-button{overflow-wrap:anywhere}
+.elo-table [data-profile-row]{cursor:pointer}
+.elo-table [data-profile-row]:focus-within{background:var(--soft)}
+.elo-run{display:grid;grid-template-columns:minmax(0,160px) auto;align-items:center;gap:16px;width:100%;padding:0;background:none;color:var(--ink);text-align:left;white-space:normal;line-height:1.4}
+.elo-run-details{display:grid;gap:3px;min-width:0}
+.elo-run strong{font-size:15px;font-weight:650;font-variant-numeric:tabular-nums}
+.elo-run span{font-size:12px;overflow-wrap:anywhere}
+.elo-run small{font-size:11px;color:var(--muted)}
+.elo-run-points{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;font-weight:650;font-variant-numeric:tabular-nums;color:var(--muted)}
+.elo-points-gain{color:var(--green)}
+.elo-points-loss{color:#b83b32}
+.elo-points-arrow{font-size:18px;line-height:1}
+html[data-theme="dark"] .elo-points-gain{color:#a6d69b}
+html[data-theme="dark"] .elo-points-loss{color:#ef9a90}
 .runner-number{font-variant-numeric:tabular-nums}
 .runner-firsts{color:var(--gold);font-weight:700}
 .runner-latest{display:grid;gap:3px;background:none;color:var(--ink);padding:0;text-align:left;font-size:13px;white-space:normal}
@@ -302,7 +345,7 @@ html[data-theme="dark"] .pb-improvement{background:#2a402c;color:#b0d9a4}
 .runner-pagination>div{display:flex;gap:8px}
 .runner-pagination .button{padding:7px 12px}
 @media(max-width:1100px){.runners-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:540px){.runners-toolbar{gap:12px;padding:16px}.runners-search{grid-column:1/-1}.runners-toolbar label:last-child{grid-column:1/-1}.runner-results-heading{padding:16px}.runner-pagination{padding:16px;align-items:flex-start;flex-direction:column}.runner-directory-table{min-width:680px}}
+@media(max-width:540px){.runners-toolbar{gap:12px;padding:16px}.runners-search{grid-column:1/-1}.runners-toolbar label:last-child{grid-column:1/-1}.runner-results-heading{padding:16px}.runner-pagination{padding:16px;align-items:flex-start;flex-direction:column}.runner-directory-table{min-width:680px}.elo-toolbar{padding:16px;align-items:stretch;flex-direction:column;gap:10px}.elo-toolbar label{width:100%}.elo-help-button{align-self:flex-start}}
 
 /* Global scrollbars also cover new scroll containers and form fields. */
 [data-run-row]{cursor:pointer}

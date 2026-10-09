@@ -96,7 +96,7 @@ function prototype(runs = [], mockFile = 'tests/fixtures/sample-data.js', enable
     location: {hash: '#levels/1/1-1/any'},
     window: {scrollTo() { this.scrollResets=(this.scrollResets||0)+1; }, addEventListener() {}},
   });
-  for (const file of ['public/assets/js/domain/levels.js', 'public/assets/js/domain/catalog.js', 'public/assets/js/domain/time.js', 'public/assets/js/domain/runs.js', mockFile, 'public/assets/js/data/store.js', 'public/assets/js/app.js'].filter(Boolean)) {
+  for (const file of ['public/assets/js/domain/levels.js', 'public/assets/js/domain/catalog.js', 'public/assets/js/domain/time.js', 'public/assets/js/domain/runs.js', 'public/assets/js/domain/ratings.js', mockFile, 'public/assets/js/data/store.js', 'public/assets/js/app.js'].filter(Boolean)) {
     if (file === 'public/assets/js/data/store.js' && !enabled) vm.runInContext('globalThis.YOSHI_MOCK_DATA.enabled=false', context);
     const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
     vm.runInContext(file.endsWith('.json') ? `globalThis.YOSHI_MOCK_DATA=${source}` : source, context);
@@ -145,6 +145,132 @@ test('runner directory renders filtered counts and profile rows without avatars'
   app.read("state.runnerPlatform='vc';renderRunnerResults()");
   assert.equal(app.element('#runner-count').textContent,'0 runners');
   assert.match(app.element('#runner-results').innerHTML,/No runners match these filters/);
+});
+
+test('Elo has its own route, sorted list and search while runners contain no Elo controls', () => {
+  const app=prototype([],null);
+  app.read(`saved.runs=[
+    {id:'fern-full',runner:'Fern',category:'warpless',platform:'SNES',timeMs:1000,date:'',status:'verified'},
+    {id:'birch-full',runner:'Birch',category:'warpless',platform:'SNES',timeMs:2000,date:'',status:'verified'},
+    {id:'fern-level',runner:'Fern',category:'il-1-1-any',platform:'Emulator',timeMs:100,date:'',status:'verified'},
+    {id:'birch-level',runner:'Birch',category:'il-1-1-any',platform:'SNES',timeMs:200,date:'',status:'verified'}
+  ];location.hash='#elo';route()`);
+  assert.equal(app.read('state.page'),'elo');
+  assert.match(app.element('main').innerHTML,/<h2>Elo<\/h2>/);
+  assert.match(app.element('#breadcrumbs').innerHTML,/Elo/);
+  const full=app.element('#elo-results').innerHTML;
+  assert.match(full,/OVERALL ELO/);assert.match(full,/STRONGEST RUN/);assert.match(full,/LATEST RUN/);
+  assert.match(full,/class="elo-run-points elo-points-gain"[^>]*><span class="elo-points-arrow" aria-hidden="true">↑<\/span> \+\d+ points/);
+  assert.match(full,/class="elo-run-points elo-points-loss"[^>]*><span class="elo-points-arrow" aria-hidden="true">↓<\/span> −\d+ points/);
+  assert.ok(full.indexOf('data-profile="Fern"')<full.indexOf('data-profile="Birch"'));
+  const rating=app.read("cachedOverallRatings(allRuns(),boards).find(entry=>entry.name==='Fern').rating");
+  app.read("state.eloSearch=' birch ';renderEloResults()");
+  assert.equal((app.element('#elo-results').innerHTML.match(/data-profile=/g)||[]).length,1);
+  assert.match(app.element('#elo-results').innerHTML,/<td class="runner-number">2<\/td>/);
+  assert.doesNotMatch(app.element('#elo-results').innerHTML,/data-profile="Fern"/);
+  app.read("profile('Fern')");
+  assert.doesNotMatch(app.element('#modal-content').innerHTML,/Overall Elo|Overall rank/);
+  app.read("profileState.view='elo';renderProfileContent()");
+  assert.match(app.element('#profile-content').innerHTML,/Overall Elo/);
+  assert.match(app.element('#profile-content').innerHTML,new RegExp('>'+rating+'</span>'));
+  app.read("profileState.type='levels';renderProfileContent()");
+  assert.equal(app.read("cachedOverallRatings(allRuns(),boards).find(entry=>entry.name==='Fern').rating"),rating);
+  app.read("saved.runs[0].status='rejected';renderEloResults()");
+  assert.notEqual(app.read("cachedOverallRatings(allRuns(),boards).find(entry=>entry.name==='Fern').rating"),rating);
+  app.read("location.hash='#runners';route()");
+  assert.doesNotMatch(app.element('main').innerHTML,/Elo|elo-method|value="elo"/);
+  assert.doesNotMatch(app.element('#runner-results').innerHTML,/ELO|OVERALL RANK/);
+  assert.match(fs.readFileSync(path.join(__dirname,'../public/index.html'),'utf8'),/href="#elo" data-page="elo">Elo/);
+});
+
+test('Elo paginates, preserves global ranks in search, and handles empty and unrated results',()=>{
+  const app=prototype([],null);
+  app.read(`saved.runs=Array.from({length:28},(_,i)=>({id:'elo-'+i,runner:'Runner '+String(i).padStart(2,'0'),category:'warpless',platform:'SNES',timeMs:60000+i,date:'',status:'verified'}));renderElo()`);
+  assert.equal((app.element('#elo-results').innerHTML.match(/data-profile=/g)||[]).length,25);
+  assert.match(app.element('#elo-results').innerHTML,/Page 1 of 2/);
+  app.read('state.eloPage=1;renderEloResults()');
+  assert.equal((app.element('#elo-results').innerHTML.match(/data-profile=/g)||[]).length,3);
+  app.read("state.eloSearch='missing';renderEloResults()");
+  assert.equal(app.read('state.eloPage'),0);
+  assert.match(app.element('#elo-results').innerHTML,/No runners match this search/);
+  const empty=prototype([],null);empty.read('renderElo()');
+  assert.match(empty.element('#elo-results').innerHTML,/No verified runners yet/);
+  empty.read("saved.runs=[{id:'solo',runner:'Solo',category:'warpless',platform:'SNES',timeMs:1000,date:'',status:'verified'}];renderElo()");
+  assert.match(empty.element('#elo-results').innerHTML,/Unrated/);
+  assert.doesNotMatch(empty.element('#elo-results').innerHTML,/NaN|undefined|Invalid Date/);
+});
+
+test('Elo help replaces runner count and both run columns show rank and actual platform',()=>{
+  const app=prototype([],null);
+  app.read(`saved.runs=[
+    {id:'fern-full',runner:'Fern',category:'warpless',platform:'Emulator',timeMs:1000,date:'2026-01-01',status:'verified'},
+    {id:'birch-full',runner:'Birch',category:'warpless',platform:'SNES',timeMs:2000,date:'2026-01-01',status:'verified'},
+    {id:'fern-level',runner:'Fern',category:'il-1-1-any',platform:'VC',timeMs:100,date:'2026-02-01',status:'verified'},
+    {id:'birch-level',runner:'Birch',category:'il-1-1-any',platform:'VC',timeMs:200,date:'2026-02-01',status:'verified'}
+  ];renderElo()`);
+  assert.match(app.element('main').innerHTML,/id="elo-help-button" aria-haspopup="dialog">How this works/);
+  assert.doesNotMatch(app.element('main').innerHTML,/elo-count|Rating method|elo-method/);
+  const markup=app.element('#elo-results').innerHTML;
+  assert.match(markup,/<small>#1 · Emulator<\/small>/);
+  assert.match(markup,/<small>#1 · VC<\/small>/);
+  assert.doesNotMatch(markup,/SNES \/ Emulator|Feb 1, 2026/);
+  app.read('showEloHelp()');
+  const help=app.element('#modal-content').innerHTML;
+  assert.match(help,/How the Elo ranking works/);
+  assert.match(help,/How you gain and lose points/);
+  assert.match(help,/PB points =/);assert.match(help,/Expected\(i, j\)/);
+  assert.match(help,/pb-elo-v7/);
+  assert.match(help,/Placement\(i, j\)/);
+  assert.match(help,/Top placements carry more weight/);
+  assert.match(help,/Limit\(board\)/);
+  app.read("saved.runs.push({id:'fern-slower',runner:'Fern',category:'warpless',platform:'SNES',timeMs:3000,date:'2026-03-01',status:'verified'});renderEloResults()");
+  assert.match(app.element('#elo-results').innerHTML,/<small>Unranked · SNES<\/small>/);
+});
+
+test('profile Elo is a separate tab with global rating, signed PB contributions and preserved filters',()=>{
+  const app=prototype([],null);
+  app.read(`saved.runs=[
+    {id:'fern-full',runner:'Fern',category:'warpless',platform:'Emulator',timeMs:1000,date:'2026-01-01',status:'verified'},
+    {id:'birch-full',runner:'Birch',category:'warpless',platform:'SNES',timeMs:2000,date:'2026-01-01',status:'verified'},
+    {id:'fern-old',runner:'Fern',category:'warpless',platform:'SNES',timeMs:3000,date:'2025-01-01',status:'verified'},
+    {id:'fern-level',runner:'Fern',category:'il-1-1-any',platform:'VC',timeMs:200,date:'2026-02-01',status:'verified'},
+    {id:'birch-level',runner:'Birch',category:'il-1-1-any',platform:'VC',timeMs:100,date:'2026-02-01',status:'verified'},
+    {id:'fern-pending',runner:'Fern',category:'warpless',platform:'SNES',timeMs:500,date:'2026-03-01',status:'pending'}
+  ];profile('Fern')`);
+  const profile=app.element('#modal-content').innerHTML;
+  assert.doesNotMatch(profile,/Overall Elo|Overall rank/);
+  assert.match(profile,/data-profile-view="history"[^>]*>Run history<\/button><button type="button" data-profile-view="elo"/);
+  app.read("profileState.view='elo';renderProfileContent()");
+  const content=app.element('#profile-content').innerHTML;
+  assert.match(content,/Overall Elo/);assert.match(content,/Overall rank/);
+  assert.match(content,/data-run="fern-full"/);assert.match(content,/data-run="fern-level"/);
+  assert.doesNotMatch(content,/fern-old|fern-pending|birch-full|birch-level/);
+  assert.match(content,/elo-points-gain/);assert.match(content,/elo-points-loss/);
+  assert.match(content,/<td>Emulator<\/td>/);assert.match(content,/<td>VC<\/td>/);
+  const rating=app.read("cachedOverallRatings(allRuns(),boards).find(entry=>entry.name==='Fern').rating");
+  app.read("profileState.type='levels';renderProfileContent()");
+  assert.match(app.element('#profile-content').innerHTML,new RegExp('>'+rating+'</span>'));
+  assert.doesNotMatch(app.element('#profile-content').innerHTML,/fern-full/);
+  app.read("runDetails('fern-level');profile('Fern',true)");
+  assert.equal(app.read('profileState.view'),'elo');assert.equal(app.read('profileState.type'),'levels');
+  assert.match(app.element('#profile-content').innerHTML,/data-run="fern-level"/);
+  app.read("profileState.platform='snes';renderProfileContent()");
+  assert.match(app.element('#profile-content').innerHTML,/No contributing PBs/);
+});
+
+test('profile Elo paginates all contributions and unrated profiles have an empty list',()=>{
+  const app=prototype([],null);
+  app.read(`saved.runs=levelBoards.slice(0,28).flatMap((board,i)=>[
+    {id:'fern-'+i,runner:'Fern',category:board.slug,platform:'SNES',timeMs:100,date:'',status:'verified'},
+    {id:'birch-'+i,runner:'Birch',category:board.slug,platform:'SNES',timeMs:200,date:'',status:'verified'}
+  ]);profile('Fern');profileState.view='elo';renderProfileContent()`);
+  assert.equal((app.element('#profile-content').innerHTML.match(/data-run=/g)||[]).length,25);
+  assert.match(app.element('#profile-content').innerHTML,/Page 1 of 2/);
+  app.read('profileState.page=1;renderProfileContent()');
+  assert.equal((app.element('#profile-content').innerHTML.match(/data-run=/g)||[]).length,3);
+  app.read("profile('Empty');profileState.view='elo';renderProfileContent()");
+  assert.match(app.element('#profile-content').innerHTML,/Unrated/);
+  assert.match(app.element('#profile-content').innerHTML,/No contributing PBs/);
 });
 
 test('runner directory paginates large lists and clamps stale pages for empty results', () => {

@@ -6,9 +6,12 @@ const {publicRoot, mockAsset, publicAssets, readMockAsset} = require('./lib/asse
 const types = {'.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.svg':'image/svg+xml', '.png':'image/png'};
 
 function createServer() {
-  const assets = new Set(publicAssets());
+  let assets = new Set(publicAssets());
   return http.createServer((req, res) => {
     const asset = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';
+    // New public files can appear while the development server is running.
+    // Refresh the allowlist on a miss, keeping private workspace files excluded.
+    if (asset !== mockAsset && !assets.has(asset)) assets = new Set(publicAssets());
     if (asset !== mockAsset && !assets.has(asset)) {
       res.writeHead(404); res.end('Not found'); return;
     }
