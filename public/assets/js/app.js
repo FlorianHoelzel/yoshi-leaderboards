@@ -1,18 +1,5 @@
 /* Visual prototype. Optional mock data is loaded separately from user submissions. */
-const categories = [
-  {slug:'100-percent',name:'100%: No Major Glitches',label:'No Major Glitches',group:'100%'},
-  {slug:'warpless',name:'All Main Stages: Warpless',label:'Warpless',group:'All Main Stages'},
-  {slug:'warps',name:'All Main Stages: Warps',label:'Warps',group:'All Main Stages'},
-  {slug:'magical-journey',name:'All Main Stages: Magical Journey',label:'Magical Journey',group:'All Main Stages'},
-  {slug:'credits-warp',name:'Any%: Credits Warp',label:'Credits Warp',group:'Any%'},
-  {slug:'beat-bowser',name:'Any%: Beat Bowser',label:'Beat Bowser',group:'Any%'},
-  {slug:'no-ace',name:'Any%: No ACE',label:'No ACE',group:'Any%'},
-  {slug:'reverse-boss-order',name:'Any%: Reverse Boss Order',label:'Reverse Boss Order',group:'Any%'},
-  {slug:'100-percent-no-restrictions',name:'100%: No Restrictions',label:'No Restrictions',group:'100%'},
-];
-const boards=[...categories,...levelBoards];
 const boardHref=board=>(board.level?`#levels/${board.world}/${board.level}/${board.mode}`:`#leaderboard/${board.slug}`)+platformQuery();
-const categoryGroups=['All Main Stages','100%','Any%'].map(name=>({name,categories:categories.filter(cat=>cat.group===name)}));
 function groupedCategories(renderCategory,openGroups){return categoryGroups.map(group=>`<details class="category-group" data-group="${group.name}" ${openGroups.has(group.name)?'open':''}><summary class="category-group-label ${state.page==='leaderboard'&&currentCategory().group===group.name?'selected':''}">${group.name}</summary><div class="category-group-items">${group.categories.map(renderCategory).join('')}</div></details>`).join('');}
 function categoryOptions(){return categoryGroups.map(group=>{const options=group.categories.map(cat=>`<option value="${cat.slug}" ${cat.slug===state.category?'selected':''}>${cat.label}</option>`).join('');return group.name?`<optgroup label="${group.name}">${options}</optgroup>`:options;}).join('');}
 const selectedGroupCategories={};
@@ -22,30 +9,16 @@ function categorySelector(cat){
   return `<div class="board-header"><div class="category-tabs" role="group" aria-label="Category">${categoryGroups.map(group=>`<button data-category="${selectedGroupCategories[group.name]||group.categories[0].slug}" class="${group.name===cat.group?'active':''}" aria-pressed="${group.name===cat.group}">${group.name||'100%'}</button>`).join('')}</div>${boardActions(cat)}</div><div class="board-filters"><div class="run-type-selector"><span class="filter-label">Run Type</span>${group.name?`<div class="subcategory-tabs" role="group" aria-label="${group.name} subcategories">${group.categories.map(c=>`<button data-category="${c.slug}" class="${c.slug===cat.slug?'active':''}" aria-pressed="${c.slug===cat.slug}">${c.label}</button>`).join('')}</div>`:''}</div>${platformSelector()}</div>`;
 }
 // Optional, disposable fixture; never persisted with user submissions.
-const runners = [];
-const sampleRuns = globalThis.YOSHI_MOCK_DATA?.enabled ? globalThis.YOSHI_MOCK_DATA.runs : [];
-const storageKey='yoshi-visual-prototype-v1';
-let saved={runs:[],viewer:''};
-try { const value=JSON.parse(localStorage.getItem(storageKey)); if(value&&Array.isArray(value.runs)){saved.runs=value.runs.filter(r=>r&&typeof r.runner==='string'&&boards.some(c=>c.slug===r.category)&&Number.isSafeInteger(r.timeMs)&&r.timeMs>0&&['pending','verified','rejected'].includes(r.status));saved.viewer=typeof value.viewer==='string'?value.viewer:'';} } catch {}
 let state={page:'leaderboard',category:categoryGroups[0].categories[0].slug,level:'1-1',levelCategory:'any',region:'all',search:'',statsBoard:'warpless',statsView:'chart',platform:'snes'};
 const main=document.querySelector('main');
 const modal=document.querySelector('#modal');
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-const allRuns=()=>[...sampleRuns,...saved.runs];
 const currentCategory=()=>state.page==='levels'?levelBoards.find(board=>board.level===state.level&&board.mode===state.levelCategory):categories.find(c=>c.slug===state.category)||categories[0];
-function persist(){try{localStorage.setItem(storageKey,JSON.stringify(saved));}catch{toast('Browser storage is unavailable; changes last for this session.');}}
 const platformQuery=()=>state.platform==='vc'?'?platform=vc':'';
-const runPlatform=run=>run.platform==='VC'?'vc':'snes';
 function platformSelector(){return `<div class="platform-selector"><span>Platform</span><div class="platform-tabs" role="group" aria-label="Platform">${[{value:'snes',label:'SNES'},{value:'vc',label:'VC'}].map(platform=>`<button type="button" data-platform="${platform.value}" aria-pressed="${state.platform===platform.value}"><span>${platform.label}</span></button>`).join('')}</div></div>`;}
-function formatTime(ms){const hours=Math.floor(ms/3600000),minutes=Math.floor(ms/60000)%60,seconds=Math.floor(ms/1000)%60;return `${hours?hours+':':''}${hours?String(minutes).padStart(2,'0'):minutes}:${String(seconds).padStart(2,'0')}${ms%1000?'.'+String(ms%1000).padStart(3,'0'):''}`;}
-function normalizeTime(value){const text=value.trim();return /^([0-5]?\d)\.\d{1,3}$/.test(text)?`0:${text.split('.')[0].padStart(2,'0')}.${text.split('.')[1]}`:text;}
-function parseTime(value){const match=normalizeTime(value).match(/^(?:(\d{1,3}):)?([0-5]?\d):([0-5]\d)(?:\.(\d{1,3}))?$/);if(!match)return null;const ms=(Number(match[1]||0)*3600+Number(match[2])*60+Number(match[3]))*1000+Number((match[4]||'').padEnd(3,'0'));return ms>0?ms:null;}
-function dateLabel(date){if(!date)return 'Unknown date';return new Date(date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
-function bestRuns(category,region='all',platform=state.platform){
-  const sorted=allRuns().filter(r=>r.category===category&&runPlatform(r)===platform&&r.status==='verified'&&(region==='all'||r.region===region)).sort((a,b)=>a.timeMs-b.timeMs||a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
-  const seen=new Set();let previous=null,rank=0;
-  return sorted.filter(r=>{if(seen.has(r.runner))return false;seen.add(r.runner);return true;}).map((r,i)=>{if(r.timeMs!==previous)rank=i+1;previous=r.timeMs;return {...r,rank};});
-}
+function bestRuns(category,region='all',platform=state.platform){return rankedRuns(allRuns(),category,region,platform);}
+function speedrunStats(runs=allRuns()){return runStats(runs,levelBoards);}
+function recordProgression(category,runs=allRuns(),platform=state.platform){return worldRecordProgression(category,runs,platform);}
 function avatar(name,large=false){const runner=runners.find(r=>r.name===name);return `<span class="avatar${large?' large':''}" style="background:${runner?.color||'#e5edda'}">${escapeHtml(name.slice(0,2).toUpperCase())}</span>`;}
 function runnerCountry(name,tag='p'){const country=runners.find(r=>r.name===name)?.country;return country?`<${tag} class="runner-location">${escapeHtml(country)}</${tag}>`:'';}
 function profileButton(name){return `<button class="runner-button" data-profile="${escapeHtml(name)}" title="${escapeHtml(name)}"><span>${escapeHtml(name)}${runnerCountry(name,'span')}</span></button>`;}
@@ -119,22 +92,6 @@ function renderLeaderboard(){
   <section class="panel"><h3>Recent verified runs</h3><div class="activity">${allRuns().filter(r=>r.status==='verified'&&r.category===cat.slug&&runPlatform(r)===state.platform).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3).map(r=>`<div class="activity-row"><div><button class="text-button" data-profile="${escapeHtml(r.runner)}">${escapeHtml(r.runner)}</button><p>${formatTime(r.timeMs)} · ${cat.name}</p><small>${dateLabel(r.date)}</small></div></div>`).join('')}</div></section>
   </aside></div>`;
 
-}
-function speedrunStats(runs=allRuns()){
-  const verified=runs.filter(run=>run.status==='verified');
-  const levelSlugs=new Set(levelBoards.map(board=>board.slug));
-  const levelRuns=verified.filter(run=>levelSlugs.has(run.category)).length;
-  return {total:verified.length,fullGame:verified.length-levelRuns,levels:levelRuns,players:new Set(verified.map(run=>run.runner)).size,timeMs:verified.reduce((sum,run)=>sum+run.timeMs,0)};
-}
-function totalRunTime(ms){
-  const days=Math.floor(ms/86400000),hours=Math.floor(ms/3600000)%24,minutes=Math.floor(ms/60000)%60,seconds=Math.floor(ms/1000)%60;
-  return `${days}d ${hours}h ${minutes}m ${seconds}s ${ms%1000}ms`;
-}
-function recordProgression(category,runs=allRuns(),platform=state.platform){
-  // Dates have day precision: use the fastest verified run for each day.
-  const chronological=runs.filter(run=>run.status==='verified'&&run.category===category&&runPlatform(run)===platform&&/^\d{4}-\d{2}-\d{2}$/.test(run.date)).sort((a,b)=>a.date.localeCompare(b.date)||a.timeMs-b.timeMs||a.id.localeCompare(b.id));
-  let record=Infinity;
-  return chronological.filter(run=>{if(run.timeMs>=record)return false;record=run.timeMs;return true;});
 }
 function statsDate(date){return new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});}
 const chartRunnerHues=new Map();
@@ -286,11 +243,6 @@ function profileData(name){
   const pbs=boards.flatMap(cat=>['snes','vc'].map(platform=>({cat,platform,run:bestRuns(cat.slug,'all',platform).find(run=>run.runner===name)}))).filter(entry=>entry.run);
   return {runs,pbs};
 }
-function profileProgression(runs,category,platform){
-  const dated=runs.filter(run=>run.category===category&&runPlatform(run)===platform&&run.date).sort((a,b)=>a.date.localeCompare(b.date)||a.timeMs-b.timeMs||a.id.localeCompare(b.id));
-  let best=Infinity;
-  return dated.filter(run=>{if(run.timeMs>=best)return false;best=run.timeMs;return true;});
-}
 function profile(name,preserve=false){
   if(!preserve)profileState={name,view:'bests',type:'all',platform:'all',board:'',page:0};
   const {runs,pbs}=profileData(name);
@@ -347,26 +299,6 @@ document.querySelector('#account-button').addEventListener('click',account);
 // Rule text is independent for each full-game category or individual-level board.
 // Summaries of category and Run Type rules from the public speedrun.com API,
 // checked 2026-10-07. Preserve combined SNES/emulator boards with separate VC and millisecond RTA.
-const startRule='Start timing when selecting a new file.';
-const bowserEnd='Stop timing on the first frame of Bowser’s explosion.';
-const mainStagesRule='Enter stages 1–8 in each of the six worlds from the world map and finish each with a score.';
-const hundredRules=['Score 100 on every stage, including all Extra stages.'];
-const hundredTiming=[startRule,'Stop timing when the final completed stage’s card flips over.'];
-const categoryRules={
-  'warpless':{source:'zd37zv2n-onvxxw58.q75pnjy1',requirements:[mainStagesRule],timing:[startRule,'Stop timing on the final input advancing the last text box after defeating Bowser (JRTA).'],bans:['Resets, 1-1 warps, Tongue Glitch, Null Egg Glitch, and arbitrary code execution (ACE).']},
-  'warps':{source:'zd37zv2n-onvxxw58.qke5rjyq',requirements:[mainStagesRule],timing:[startRule,bowserEnd],bans:['Null Egg Glitch and arbitrary code execution (ACE).']},
-  'magical-journey':{source:'zd37zv2n-onvxxw58.1gn5jvnl',requirements:[mainStagesRule],timing:[startRule,bowserEnd],bans:['Save corruption and arbitrary code execution (ACE).']},
-  '100-percent':{source:'9d8gzlkn-yn2kk2jn.1w49mp5q',requirements:hundredRules,timing:hundredTiming,bans:['1-1 warps, Tongue Glitch, Null Egg Glitch, and arbitrary code execution (ACE).'],verification:['After finishing, check scores in every world, or reset and show the six stars on the title screen. This verification is recommended by speedrun.com.']},
-  '100-percent-no-restrictions':{source:'9d8gzlkn-yn2kk2jn.qox9yp2q',requirements:hundredRules,timing:hundredTiming},
-  'credits-warp':{source:'z27qx5k0-jlz0r082.jq6v2ro1',timing:[startRule,'Stop timing once the screen is fully black before the credits.']},
-  'beat-bowser':{source:'z27qx5k0-jlz0r082.jqz7g9gl',timing:[startRule,bowserEnd]},
-  'no-ace':{source:'z27qx5k0-jlz0r082.klr3ydwl',timing:[startRule,bowserEnd],bans:['Arbitrary code execution (ACE).']},
-  'reverse-boss-order':{source:'z27qx5k0-jlz0r082.lmopxk41',requirements:['Defeat each boss once in reverse order, from 6-8 to 1-4, then warp to the credits.','A boss defeat counts at the first explosion frame; resetting from that point is allowed.'],timing:[startRule,'Stop timing once the screen is fully black before the credits.']},
-};
-const levelRules={
-  timing:['Start timing on the frame the “10” appears.','Stop timing when Yoshi first starts throwing Baby Mario into the goal ring and the camera resumes moving right, or at the first boss explosion frame in boss stages.'],
-  bans:['No strategies may depend on setup performed before timing starts.','Do not use eggs or items collected before timing starts.','Do not use Tongue Glitch Cancels that depend on pre-initializing the goal Yoshi sprite slot.','Do not execute ACE payloads written partly before timing starts, or execute ACE before timing to alter routines or stage data.'],
-};
 function boardActions(board){return `<div class="board-actions"><a class="board-rules" href="#stats/${board.slug}${platformQuery()}" aria-label="World record history for ${escapeHtml(board.name)}">History</a>${boardRulesButton(board)}</div>`;}
 function boardRulesButton(board){return `<button class="board-rules" type="button" data-rules="${board.slug}" aria-label="Rules for ${escapeHtml(board.name)}">Rules</button>`;}
 function showBoardRules(slug){

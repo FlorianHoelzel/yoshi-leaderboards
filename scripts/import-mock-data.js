@@ -79,10 +79,9 @@ async function main() {
   if (!input) throw new Error('Usage: node scripts/import-mock-data.js <CSV path> [--resolve]');
   const apiRuns = process.argv.includes('--resolve') ? await fetchApiRuns() : {};
   const {runs, skipped} = convertRows(parseCsv(fs.readFileSync(input, 'utf8')), {apiRuns});
-  const output = '// Disposable mock data from yi_all_runs.csv. Set enabled to false to disable, or delete this file and its index.html script tag.\n' +
-    '// Full-game subcategories and VC resolved from public speedrun.com Run Type and Platform values.\n' +
-    'globalThis.YOSHI_MOCK_DATA = {\n  enabled: true,\n  runs: [\n' + runs.map(run => '    ' + JSON.stringify(run)).join(',\n') + '\n  ]\n};\n';
-  fs.writeFileSync(path.join(__dirname, '..', 'mock-data.js'), output);
+  const output = JSON.stringify({enabled:true, runs}, null, 2) + '\n';
+  fs.mkdirSync(path.join(__dirname, '..', 'data'), {recursive:true});
+  fs.writeFileSync(path.join(__dirname, '..', 'data', 'mock-runs.json'), output);
   console.log(`Imported ${runs.length} mock runs; skipped ${skipped.length}.`);
 }
 if (require.main === module) main().catch(error => { console.error(error.message); process.exitCode = 1; });

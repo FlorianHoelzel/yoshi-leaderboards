@@ -45,12 +45,30 @@ The frontend uses native HTML, CSS, and JavaScript with an original decorative S
 
 ## Removable mock data
 
-All mock runs live in `mock-data.js`, loaded before `app.js`. The application never writes them to localStorage; browser submissions remain separate under `yoshi-visual-prototype-v1`. The previous fictional records are kept only as a test fixture.
+Imported mock runs live in `data/mock-runs.json`. The build and optional local server turn this JSON into a browser fixture. Browser submissions remain separate under `yoshi-visual-prototype-v1`; the fictional records are used only by tests.
 
-- Disable all mock records by setting `enabled: false` at the top of `mock-data.js`.
-- Permanently remove them by deleting `mock-data.js` and removing its script tag from `index.html`. The app starts with empty boards and retains local submissions. The build automatically excludes a deleted fixture and removes its previously built copy.
-- Regenerate with `npm run mock:import -- "path/to/yi_all_runs.csv" --resolve`. This reads public speedrun.com API run metadata at import time; the site itself stays static. Without `--resolve`, ambiguous full-game records are skipped.
+- Disable mock records by setting `"enabled": false` in the JSON file.
+- Remove them by deleting `data/mock-runs.json`. Builds and the local server supply an empty fixture automatically; no HTML changes are required.
+- Regenerate with `npm run mock:import -- "path/to/yi_all_runs.csv" --resolve`. This reads public speedrun.com API metadata at import time; the site stays static. Without `--resolve`, ambiguous full-game records are skipped.
+
+See [data/README.md](data/README.md) for the record contract and import lifecycle.
 
 The CSV omits category variables. Full-game boards are resolved by run ID using the actual Run Type values, not guesses from category names or times. The source Platform variable identifies VC (`yn2jx2e8=21g5jw8l`); SNES and emulator still share boards. Original hardware labels and API values are retained in each mock record for traceability. Unresolved records are skipped. Missing run dates remain unknown; submitted/verified dates are not substituted. Source statuses are preserved, with `new` converted to `pending`; only verified records rank. Times are rounded from seconds to integer milliseconds.
 
 This snapshot includes 2,441 of the CSV's 2,442 runs, including 156 VC runs. One rejected run (`zxvv8eky`) has no runner name and is omitted. All 35 missing run dates remain unknown.
+
+## Project layout
+
+`public/` contains the site entry point and browser assets. `data/` contains the imported JSON snapshot. `scripts/` contains build, preview, validation, and import tools. `tests/` contains behavior and build checks, with fictional data in `tests/fixtures/`. `docs/blueprint.md` describes the planned backend.
+
+Browser code is grouped by responsibility:
+
+- `public/assets/js/domain/`: levels, categories, rules, timing, and ranking/progression queries. Ranking queries take explicit run collections.
+- `public/assets/js/data/store.js`: imported records, local submission loading, and persistence.
+- `public/assets/js/app.js`: navigation, view state, rendering, charts, dialogs, and event handling.
+- `public/assets/js/theme.js`: early theme initialization.
+- `public/assets/css/` and `public/assets/images/`: styles and visual assets.
+
+The HTML script order loads domain definitions before storage and the application. Native scripts keep the site dependency-free. `scripts/lib/assets.js` gives the build and local server the same public asset list; only `public/` and the generated mock fixture are published. `dist/` is disposable build output.
+
+Run `npm run check`, `npm test`, and `npm run build` to validate changes.

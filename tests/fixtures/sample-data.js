@@ -1,5 +1,4 @@
 globalThis.YOSHI_MOCK_DATA = (() => {
-const categories = ["100-percent","warpless","warps","magical-journey","credits-warp","beat-bowser","no-ace","reverse-boss-order","100-percent-no-restrictions"].map(slug=>({slug}));
 const runners = [
   {name:'aura',country:'Japan',color:'#e5edda'},
   {name:'puddles',country:'United States',color:'#e5eaf2'},

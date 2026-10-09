@@ -96,15 +96,16 @@ function prototype(runs = [], mockFile = 'tests/fixtures/sample-data.js', enable
     location: {hash: '#levels/1/1-1/any'},
     window: {scrollTo() { this.scrollResets=(this.scrollResets||0)+1; }, addEventListener() {}},
   });
-  for (const file of ['levels.js', mockFile, 'app.js'].filter(Boolean)) {
-    if (file === 'app.js' && !enabled) vm.runInContext('globalThis.YOSHI_MOCK_DATA.enabled=false', context);
-    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), context);
+  for (const file of ['public/assets/js/domain/levels.js', 'public/assets/js/domain/catalog.js', 'public/assets/js/domain/time.js', 'public/assets/js/domain/runs.js', mockFile, 'public/assets/js/data/store.js', 'public/assets/js/app.js'].filter(Boolean)) {
+    if (file === 'public/assets/js/data/store.js' && !enabled) vm.runInContext('globalThis.YOSHI_MOCK_DATA.enabled=false', context);
+    const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+    vm.runInContext(file.endsWith('.json') ? `globalThis.YOSHI_MOCK_DATA=${source}` : source, context);
   }
   return {read: code => vm.runInContext(code, context), element};
 }
 
-test('CSV mock fixture resolves subcategories and VC and renders all boards and stats', {skip:!fs.existsSync(path.join(__dirname, '..', 'mock-data.js'))}, () => {
-  const app = prototype([], 'mock-data.js');
+test('CSV mock fixture resolves subcategories and VC and renders all boards and stats', {skip:!fs.existsSync(path.join(__dirname, '..', 'data/mock-runs.json'))}, () => {
+  const app = prototype([], 'data/mock-runs.json');
   assert.equal(app.read('sampleRuns.length'), 2441);
   assert.equal(app.read("sampleRuns.filter(run=>run.platform==='VC').length"), 156);
   assert.equal(app.read("sampleRuns.find(run=>run.sourceRunId==='pm3dw56z').category"), 'magical-journey');
