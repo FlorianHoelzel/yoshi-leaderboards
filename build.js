@@ -1,7 +1,7 @@
 // Copy only public assets; source, environment files, and Git metadata stay out.
 const fs = require('node:fs');
 const path = require('node:path');
-const assets = ['index.html', 'styles.css', 'app.js', 'levels.js', 'theme.js', 'island.svg'];
+const assets = ['index.html', 'styles.css', 'app.js', 'levels.js', 'theme.js', 'island.svg', 'logo.png'];
 if (fs.existsSync(path.join(__dirname, 'mock-data.js'))) assets.push('mock-data.js');
 const output = path.join(__dirname, 'dist');
 fs.mkdirSync(output, { recursive: true });

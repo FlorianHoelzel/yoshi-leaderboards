@@ -19,7 +19,7 @@ const selectedGroupCategories={};
 function categorySelector(cat){
   selectedGroupCategories[cat.group]=cat.slug;
   const group=categoryGroups.find(group=>group.name===cat.group);
-  return `<div class="board-header"><div class="category-tabs" role="group" aria-label="Category">${categoryGroups.map(group=>`<button data-category="${selectedGroupCategories[group.name]||group.categories[0].slug}" class="${group.name===cat.group?'active':''}" aria-pressed="${group.name===cat.group}">${group.name||'100%'}</button>`).join('')}</div>${boardRulesButton(cat)}</div><div class="board-filters"><div class="run-type-selector"><span class="filter-label">Run Type</span>${group.name?`<div class="subcategory-tabs" role="group" aria-label="${group.name} subcategories">${group.categories.map(c=>`<button data-category="${c.slug}" class="${c.slug===cat.slug?'active':''}" aria-pressed="${c.slug===cat.slug}">${c.label}</button>`).join('')}</div>`:''}</div>${platformSelector()}</div>`;
+  return `<div class="board-header"><div class="category-tabs" role="group" aria-label="Category">${categoryGroups.map(group=>`<button data-category="${selectedGroupCategories[group.name]||group.categories[0].slug}" class="${group.name===cat.group?'active':''}" aria-pressed="${group.name===cat.group}">${group.name||'100%'}</button>`).join('')}</div>${boardActions(cat)}</div><div class="board-filters"><div class="run-type-selector"><span class="filter-label">Run Type</span>${group.name?`<div class="subcategory-tabs" role="group" aria-label="${group.name} subcategories">${group.categories.map(c=>`<button data-category="${c.slug}" class="${c.slug===cat.slug?'active':''}" aria-pressed="${c.slug===cat.slug}">${c.label}</button>`).join('')}</div>`:''}</div>${platformSelector()}</div>`;
 }
 // Optional, disposable fixture; never persisted with user submissions.
 const runners = [];
@@ -84,7 +84,7 @@ function leaderboardNavigation(){
 }
 function levelSelector(board){
   const level=levels.find(level=>level.slug===board.level);
-  return `<div class="board-header"><div class="category-tabs" role="group" aria-label="World">${Array.from({length:6},(_,i)=>i+1).map(world=>`<a href="#levels/${world}/${world}-1/${board.mode}${platformQuery()}" class="${world===board.world?'active':''}" ${world===board.world?'aria-current="true"':''}>World ${world}</a>`).join('')}</div>${boardRulesButton(board)}</div>
+  return `<div class="board-header"><div class="category-tabs" role="group" aria-label="World">${Array.from({length:6},(_,i)=>i+1).map(world=>`<a href="#levels/${world}/${world}-1/${board.mode}${platformQuery()}" class="${world===board.world?'active':''}" ${world===board.world?'aria-current="true"':''}>World ${world}</a>`).join('')}</div>${boardActions(board)}</div>
   <div class="subcategory-tabs level-tabs" role="group" aria-label="Level">${levels.filter(level=>level.world===board.world).map(level=>`<a href="#levels/${board.world}/${level.slug}/${board.mode}${platformQuery()}" class="${level.slug===board.level?'active':''}" ${level.slug===board.level?'aria-current="true"':''}>${level.slug}</a>`).join('')}</div>
   <div class="level-heading"><h3>${level.slug}: ${escapeHtml(level.name)}</h3></div>
   <div class="board-filters"><div class="run-type-selector"><span class="filter-label">Category</span><div class="subcategory-tabs" role="group" aria-label="Level category">${levelCategories.map(category=>`<a href="#levels/${board.world}/${board.level}/${category.slug}${platformQuery()}" class="${category.slug===board.mode?'active':''}" ${category.slug===board.mode?'aria-current="true"':''}>${category.name}</a>`).join('')}</div></div>${platformSelector()}</div>`;
@@ -367,6 +367,7 @@ const levelRules={
   timing:['Start timing on the frame the “10” appears.','Stop timing when Yoshi first starts throwing Baby Mario into the goal ring and the camera resumes moving right, or at the first boss explosion frame in boss stages.'],
   bans:['No strategies may depend on setup performed before timing starts.','Do not use eggs or items collected before timing starts.','Do not use Tongue Glitch Cancels that depend on pre-initializing the goal Yoshi sprite slot.','Do not execute ACE payloads written partly before timing starts, or execute ACE before timing to alter routines or stage data.'],
 };
+function boardActions(board){return `<div class="board-actions"><a class="board-rules" href="#stats/${board.slug}${platformQuery()}" aria-label="World record history for ${escapeHtml(board.name)}">History</a>${boardRulesButton(board)}</div>`;}
 function boardRulesButton(board){return `<button class="board-rules" type="button" data-rules="${board.slug}" aria-label="Rules for ${escapeHtml(board.name)}">Rules</button>`;}
 function showBoardRules(slug){
   const board=boards.find(board=>board.slug===slug);if(!board)return;
