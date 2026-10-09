@@ -84,7 +84,7 @@ function prototype(runs = [], mockFile = 'tests/fixtures/sample-data.js', enable
   const elements = new Map();
   const element = selector => {
     if (!elements.has(selector)) elements.set(selector, {
-      innerHTML: '', textContent: '', addEventListener() {}, querySelectorAll: () => [],
+      innerHTML: '', textContent: '', addEventListener(event,handler) {this.handlers??={};this.handlers[event]=handler;}, setAttribute() {}, querySelectorAll: () => [],
       classList: {toggle() {}, add() {}, remove() {}}, showModal() {},
     });
     return elements.get(selector);
@@ -103,6 +103,71 @@ function prototype(runs = [], mockFile = 'tests/fixtures/sample-data.js', enable
   }
   return {read: code => vm.runInContext(code, context), element};
 }
+
+test('Elo recommendations use the test identity without selectors, and support cancellation and retry',()=>{
+  const app=prototype([
+    {id:'v',runner:'Volpey',category:'warpless',platform:'SNES',timeMs:60000,date:'',status:'verified'},
+    {id:'b',runner:'Birch',category:'warpless',platform:'SNES',timeMs:50000,date:'',status:'verified'},
+  ],null);
+  app.read(`globalThis.workers=[];globalThis.Worker=class {
+    constructor(url){this.url=url;workers.push(this);}
+    postMessage(payload){this.payload=payload;}
+    terminate(){this.terminated=true;}
+  };profile('Birch');profileState.view='elo';renderProfileContent();renderElo()`);
+  assert.doesNotMatch(app.element('#profile-content').innerHTML,/Find my next run/);
+  const content=app.element('main').innerHTML;
+  assert.ok(content.indexOf('Search runners')<content.indexOf('Find my next run'));
+  assert.ok(content.indexOf('Find my next run')<content.indexOf('How this works'));
+  const storedBefore=app.read('JSON.stringify(saved)');
+  app.element('#elo-recommend-open').handlers.click();
+  const dialog=app.element('#modal-content').innerHTML;
+  assert.doesNotMatch(dialog,/<select|elo-recommend-runner|elo-recommend-type|elo-recommend-platform/);
+  assert.match(dialog,/Volpey/);
+  assert.match(dialog,/elo-recommendation-summary/);
+  assert.match(dialog,/Current Elo/);
+  assert.equal(app.read('workers[0].payload.name'),'Volpey');
+  assert.equal(app.read('JSON.stringify(workers[0].payload.options)'),'{}');
+  app.read("workers[0].onmessage({data:{type:'progress',completed:1,total:4}})");
+  assert.match(app.element('#elo-recommend-status').textContent,/1 of 4/);
+  app.element('#elo-recommend-cancel').handlers.click();
+  assert.equal(app.read('workers[0].terminated'),true);
+  assert.equal(app.element('#elo-recommend-button').disabled,false);
+  app.read("workers[0].onmessage({data:{type:'result',result:{recommendations:[]}}})");
+  assert.equal(app.element('#elo-recommend-results').innerHTML,'');
+  app.read('findEloRecommendations();workers[1].onerror()');
+  assert.match(app.element('#elo-recommend-status').textContent,/could not be calculated/);
+  assert.equal(app.read('workers[1].terminated'),true);
+  app.read(`findEloRecommendations();workers[2].onmessage({data:{type:'result',result:{
+    baseline:{rating:1500,rank:3},tested:4,recommendations:[{
+      category:'warpless',platform:'snes',currentTimeMs:600999,currentBoardRank:3,
+      timeMs:499000,targetBoardRank:1,fieldSize:3,estimatedRating:1508,estimatedRank:2,gain:8
+    }]
+  }}})`);
+  const results=app.element('#elo-recommend-results').innerHTML;
+  assert.match(results,/ESTIMATED RESULT/);
+  assert.doesNotMatch(results,/EST\. OVERALL RANK/);
+  assert.match(results,/8:19/);assert.match(results,/10:00/);
+  assert.doesNotMatch(results,/\.999/);
+  assert.match(results,/↑ \+8 Elo/);assert.match(results,/#3 → #2/);
+  assert.equal(app.read("formatRecommendationTime(49999)"),'0:49.999');
+  assert.equal(app.element('#elo-recommend-button').disabled,false);
+  assert.equal(app.element('#elo-recommend-cancel').hidden,true);
+  assert.equal(app.read('JSON.stringify(saved)'),storedBefore);
+  app.read('findEloRecommendations()');app.element('#modal').handlers.close();
+  assert.equal(app.read('workers[3].terminated'),true);
+});
+
+test('recommendations do not fall back to another runner when the test identity has no PBs',()=>{
+  const app=prototype([
+    {id:'f',runner:'Fern',category:'warpless',platform:'SNES',timeMs:60000,date:'',status:'verified'},
+    {id:'b',runner:'Birch',category:'warpless',platform:'SNES',timeMs:50000,date:'',status:'verified'},
+  ],null);
+  app.read('showEloRecommendations()');
+  const dialog=app.element('#modal-content').innerHTML;
+  assert.match(dialog,/No comparable PBs available/);
+  assert.match(dialog,/id="elo-recommend-button" disabled/);
+  assert.doesNotMatch(dialog,/<select/);
+});
 
 test('runner directory counts PBs separately from histories, preserves tied #1s and groups emulator with SNES', () => {
   const app=prototype([],null);

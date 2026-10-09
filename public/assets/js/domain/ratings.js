@@ -47,7 +47,7 @@ function overallPairWeight(weight,a,b,exposure,rankA,rankB) {
   // Both sides of each comparison use exactly the same weight.
   return weight*overallPlacementWeight(rankA,rankB)/Math.sqrt(1+(exposure.get(a)+exposure.get(b))/2);
 }
-function overallRatings(runs, boardDefinitions) {
+function overallRatings(runs, boardDefinitions, initialRatings=[]) {
   const groups = {full: [], levels: []};
   const people = new Map();
   for (const board of [...boardDefinitions].sort((a,b)=>a.slug.localeCompare(b.slug))) {
@@ -77,7 +77,10 @@ function overallRatings(runs, boardDefinitions) {
   // L2 prior around 1500 prevents divergence for undefeated runners and
   // anchors disconnected fields. All updates use the same previous snapshot.
   const prior=overallEloPrior, step=1/(prior+Math.max(0,...degree)/2);
-  let strengths=entries.map(()=>0);
+  // Simulations can reuse a converged snapshot as a starting point. The same
+  // objective, tolerance and global refit still determine the final strengths.
+  const initialStrengths=new Map(initialRatings.map(entry=>[entry.name,entry.strength]));
+  let strengths=entries.map(entry=>initialStrengths.get(entry.name)||0);
   for (let iteration=0; iteration<1000; iteration++) {
     const gradient=strengths.map(value=>prior*value);
     for (const {a,b,weight,score} of edges) {

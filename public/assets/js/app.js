@@ -247,9 +247,10 @@ function eloRunButton(run,points=0){
   return `<button type="button" class="elo-run" data-run="${escapeHtml(run.id)}"><span class="elo-run-details"><strong>${formatTime(run.timeMs)}</strong><span>${escapeHtml(board.name)}</span><small>${run.rank?'#'+run.rank:'Unranked'} · ${escapeHtml(run.platform||'Unknown')}</small></span>${eloPointIndicator(points)}</button>`;
 }
 function renderElo(){
-  main.innerHTML=`<div class="page-heading"><h2>Elo</h2></div><section class="board" aria-label="Overall Elo rankings"><div class="elo-toolbar"><label for="elo-search">Search runners<input id="elo-search" type="search" placeholder="Runner name" autocomplete="off" aria-controls="elo-results" value="${escapeHtml(state.eloSearch||'')}"></label><button type="button" class="button secondary elo-help-button" id="elo-help-button" aria-haspopup="dialog">How this works</button></div><div id="elo-results"></div></section>`;
+  main.innerHTML=`<div class="page-heading"><h2>Elo</h2></div><section class="board" aria-label="Overall Elo rankings"><div class="elo-toolbar"><label for="elo-search">Search runners<input id="elo-search" type="search" placeholder="Runner name" autocomplete="off" aria-controls="elo-results" value="${escapeHtml(state.eloSearch||'')}"></label><div class="elo-toolbar-actions"><button type="button" class="button secondary" id="elo-recommend-open" aria-haspopup="dialog">Find my next run</button><button type="button" class="button secondary elo-help-button" id="elo-help-button" aria-haspopup="dialog">How this works</button></div></div><div id="elo-results"></div></section>`;
   renderEloResults();
   document.querySelector('#elo-help-button').addEventListener('click',showEloHelp);
+  document.querySelector('#elo-recommend-open').addEventListener('click',showEloRecommendations);
   document.querySelector('#elo-search').addEventListener('input',event=>{state.eloSearch=event.target.value;state.eloPage=0;renderEloResults();});
 }
 function renderEloResults(){
@@ -307,7 +308,13 @@ function renderResources(){
 function renderRules(){main.innerHTML=`${leaderboardNavigation()}<div class="page-heading"><h2>Rules</h2></div><section class="content-card">${categoryGroups.flatMap(group=>group.categories).map(board=>`<article class="rule-block"><h3>${board.name}</h3>${boardRulesButton(board)}</article>`).join('')}</section>`;}
 function renderMyRuns(){const own=saved.runs.filter(r=>r.runner===saved.viewer).sort((a,b)=>b.submittedAt.localeCompare(a.submittedAt));main.innerHTML=`<div class="page-heading"><div><h2>My submissions</h2></div></div><div class="notice">Demo moderation</div><section class="board">${own.length?`<div class="table-wrap"><table><thead><tr><th>CATEGORY</th><th>TIME</th><th>DATE</th><th>STATUS</th><th>PREVIEW REVIEW</th></tr></thead><tbody>${own.map(r=>`<tr data-run-row="${escapeHtml(r.id)}"><td>${boards.find(c=>c.slug===r.category).name}</td><td><button class="time-button" data-run="${r.id}">${formatTime(r.timeMs)}</button></td><td class="run-date">${dateLabel(r.date)}</td><td><span class="status ${r.status}">${r.status[0].toUpperCase()+r.status.slice(1)}</span></td><td>${r.status==='pending'?`<button class="text-button" data-verify="${r.id}">Verify</button> · <button class="text-button" data-reject="${r.id}">Reject</button>`:'<span class="subtext">Reviewed</span>'}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty"><h3>No submissions</h3></div>`}</section>`;}
 let lastModalTitle='';
-function openModal(title,body){if(title==='Run details'&&lastModalTitle==='Runner profile'&&modal.open)body='<button class="text-button profile-back" data-profile-return>Back to profile</button>'+body;lastModalTitle=title;document.querySelector('#modal-content').innerHTML=`<div class="modal-header"><h2 id="dialog-title">${title}</h2><button class="close-button" type="button" data-close aria-label="Close dialog"><span aria-hidden="true"></span></button></div><div class="modal-body">${body}</div>`;if(!modal.open)modal.showModal();}
+function openModal(title,body){cancelEloRecommendations();if(title==='Run details'&&lastModalTitle==='Runner profile'&&modal.open)body='<button class="text-button profile-back" data-profile-return>Back to profile</button>'+body;lastModalTitle=title;document.querySelector('#modal-content').innerHTML=`<div class="modal-header"><h2 id="dialog-title">${title}</h2><button class="close-button" type="button" data-close aria-label="Close dialog"><span aria-hidden="true"></span></button></div><div class="modal-body">${body}</div>`;if(!modal.open)modal.showModal();}
+let eloRecommendationWorker=null,eloRecommendationRequest=0;
+function cancelEloRecommendations(){
+  eloRecommendationRequest++;
+  if(eloRecommendationWorker)eloRecommendationWorker.terminate();
+  eloRecommendationWorker=null;
+}
 let profileState={name:'',view:'bests',type:'all',platform:'all',board:'',page:0};
 function profileData(name){
   const runs=allRuns().filter(run=>run.runner===name&&run.status==='verified');
@@ -357,7 +364,62 @@ function renderProfileElo(content,pbs,matches){
   const pages=Math.ceil(contributions.length/25);profileState.page=Math.max(0,Math.min(profileState.page,pages-1));
   const start=profileState.page*25;
   content.innerHTML=`<dl class="profile-elo-summary"><div><dt>Overall Elo</dt><dd>${eloValue(elo)}</dd></div><div><dt>Overall rank</dt><dd>${elo?.rank?'#'+elo.rank:'—'}</dd></div></dl>${profileState.type!=='all'||profileState.platform!=='all'?'<p class="profile-note">Overall Elo and rank use all boards. The filters apply to the run list.</p>':''}<h3 class="profile-elo-heading">Contributing PBs</h3>${contributions.length?`<div class="table-wrap"><table class="profile-elo-table"><caption class="sr-only">Current verified PB contributions, highest points first</caption><thead><tr><th scope="col">BOARD</th><th scope="col">TIME</th><th scope="col">RANK</th><th scope="col">PLATFORM</th><th scope="col">POINTS</th></tr></thead><tbody>${contributions.slice(start,start+25).map(({run,points})=>`<tr data-run-row="${escapeHtml(run.id)}"><td>${escapeHtml(boards.find(board=>board.slug===run.category).name)}</td><td><button class="time-button" data-run="${escapeHtml(run.id)}">${formatTime(run.timeMs)}</button></td><td>#${run.rank}</td><td>${escapeHtml(run.platform||'Unknown')}</td><td>${eloPointIndicator(points)}</td></tr>`).join('')}</tbody></table></div>${pages>1?`<div class="profile-pagination"><span>Page ${profileState.page+1} of ${pages}</span><div><button class="button secondary" id="profile-prev" ${profileState.page===0?'disabled':''}>Previous</button><button class="button secondary" id="profile-next" ${profileState.page+1>=pages?'disabled':''}>Next</button></div></div>`:''}`:'<div class="empty"><h3>No contributing PBs for these filters</h3></div>'}`;
+
   for(const [id,step] of [['prev',-1],['next',1]])document.querySelector(`#profile-${id}`)?.addEventListener('click',()=>{profileState.page+=step;renderProfileContent();document.querySelector(`#profile-${id}`)?.focus();});
+}
+function currentEloRecommendationRunner(){
+  // Temporary signed-in identity for the local trial. Replace with the
+  // authenticated runner identity when registrations are implemented.
+  return 'Volpey';
+}
+function showEloRecommendations(){
+  const name=currentEloRecommendationRunner();
+  const entry=cachedOverallRatings(allRuns(),boards).find(entry=>entry.name===name&&entry.rating!==null);
+  openModal('Run recommendations',`<section class="elo-recommendations"><header class="elo-recommendation-header"><div><h3 class="elo-recommendation-runner">${escapeHtml(name)}</h3><dl class="elo-recommendation-summary"><div><dt>Current Elo</dt><dd>${entry?.rating??'—'}</dd></div><div><dt>Overall rank</dt><dd>${entry?.rank?'#'+entry.rank:'—'}</dd></div></dl></div><div class="elo-recommendation-actions"><button type="button" class="button secondary" id="elo-recommend-button" ${entry?'':'disabled'}>Recalculate</button><button type="button" class="text-button" id="elo-recommend-cancel" hidden>Cancel</button></div></header><p id="elo-recommend-status" class="elo-recommendation-status" role="status" aria-live="polite">${entry?'':'No comparable PBs available.'}</p><div id="elo-recommend-results"></div><p class="elo-recommendation-note">Estimates use the current standings and one run at a time. Gains cannot be added together. Targets are not predictions of achievable times.</p></section>`);
+  document.querySelector('#elo-recommend-button').addEventListener('click',findEloRecommendations);
+  document.querySelector('#elo-recommend-cancel').addEventListener('click',()=>{cancelEloRecommendations();finishEloRecommendations('Calculation cancelled.');});
+  if(entry)findEloRecommendations();
+}
+function finishEloRecommendations(message){
+  document.querySelector('#elo-recommend-button').disabled=false;
+  document.querySelector('#elo-recommend-cancel').hidden=true;
+  document.querySelector('#elo-recommend-status').textContent=message;
+  document.querySelector('#elo-recommend-results').setAttribute('aria-busy','false');
+}
+function findEloRecommendations(){
+  cancelEloRecommendations();
+  const request=eloRecommendationRequest;
+  const status=document.querySelector('#elo-recommend-status'),results=document.querySelector('#elo-recommend-results');
+  document.querySelector('#elo-recommend-button').disabled=true;
+  document.querySelector('#elo-recommend-cancel').hidden=false;
+  results.innerHTML='';results.setAttribute('aria-busy','true');
+  status.textContent='Calculating targets…';
+  const fail=()=>{cancelEloRecommendations();finishEloRecommendations('Recommendations could not be calculated. Try again.');};
+  try{
+    const worker=new Worker('assets/js/domain/recommendations-worker.js');
+    eloRecommendationWorker=worker;
+    worker.onerror=()=>{if(request===eloRecommendationRequest)fail();};
+    worker.onmessage=({data})=>{
+      if(request!==eloRecommendationRequest)return;
+      if(data.type==='progress'){status.textContent=`Comparing targets: ${data.completed} of ${data.total}`;return;}
+      if(data.type==='error'){fail();return;}
+      if(data.type!=='result')return;
+      const {baseline,recommendations,tested}=data.result;
+      worker.terminate();eloRecommendationWorker=null;
+      finishEloRecommendations(recommendations.length?`${recommendations.length} recommendations · ${tested} targets compared`:'No tested target improves your displayed Elo.');
+      results.innerHTML=eloRecommendationResults(recommendations,baseline);
+    };
+    worker.postMessage({runs:allRuns(),boards,name:currentEloRecommendationRunner(),options:{}});
+  }catch{fail();}
+}
+function formatRecommendationTime(timeMs){return formatTime(timeMs>=60000?Math.floor(timeMs/1000)*1000:timeMs);}
+function eloRecommendationResults(recommendations,baseline){
+  if(!recommendations.length)return '';
+  return `<div class="table-wrap"><table class="elo-recommendation-table"><caption class="sr-only">Independent simulated PB targets, ordered by estimated Elo gain</caption><colgroup><col class="elo-rec-board"><col class="elo-rec-current"><col class="elo-rec-target"><col class="elo-rec-result"></colgroup><thead><tr><th scope="col">BOARD</th><th scope="col">CURRENT PB</th><th scope="col">TARGET</th><th scope="col">ESTIMATED RESULT</th></tr></thead><tbody>${recommendations.map(item=>{
+    const board=boards.find(board=>board.slug===item.category);
+    const href=(board.level?`#levels/${board.world}/${board.level}/${board.mode}`:`#leaderboard/${board.slug}`)+(item.platform==='vc'?'?platform=vc':'');
+    return `<tr><td><a href="${href}" data-run-board>${escapeHtml(board.name)}</a><small>${item.platform==='vc'?'VC':'SNES / Emulator'}</small></td><td>${item.currentTimeMs===null?'—<small>New board</small>':`<strong>${formatRecommendationTime(item.currentTimeMs)}</strong><small>Board #${item.currentBoardRank}</small>`}</td><td><strong>${formatRecommendationTime(item.timeMs)}</strong><small>Board #${item.targetBoardRank} of ${item.fieldSize}</small><small>${item.currentTimeMs===null?'Based on your median placement':`Save ${formatRecommendationTime(item.currentTimeMs-item.timeMs)}`}</small></td><td><strong class="elo-points-gain">↑ +${item.gain} Elo</strong><small>${baseline.rating} → ${item.estimatedRating} Elo</small><small>Overall #${baseline.rank} → #${item.estimatedRank}</small></td></tr>`;
+  }).join('')}</tbody></table></div>`;
 }
 function runDetails(id){const run=allRuns().find(r=>r.id===id);if(!run)return;const cat=boards.find(c=>c.slug===run.category);const pb=bestRuns(run.category,'all',runPlatform(run)).find(r=>r.runner===run.runner);const earlier=allRuns().filter(r=>r.runner===run.runner&&r.category===run.category&&runPlatform(r)===runPlatform(run)&&r.status==='verified'&&r.date&&run.date&&r.date<run.date).sort((a,b)=>a.timeMs-b.timeMs)[0];openModal('Run details',`<div class="run-heading"><h3><button class="text-button" data-profile="${escapeHtml(run.runner)}">${escapeHtml(run.runner)}</button></h3><p><a href="${boardHref(cat)}" data-run-board>${escapeHtml(cat.name)}</a></p></div><div class="detail-time-row"><div class="detail-time">${formatTime(run.timeMs)}</div>${earlier&&run.timeMs<earlier.timeMs?`<span class="pb-improvement" aria-label="Improvement over previous PB: ${formatTime(earlier.timeMs-run.timeMs)}" title="Improvement over previous PB"><span class="pb-improvement-value">−${formatTime(earlier.timeMs-run.timeMs)}</span><span>vs. previous PB</span></span>`:''}</div><span class="status ${run.status}">${run.status[0].toUpperCase()+run.status.slice(1)}</span><dl class="detail-grid"><div><dt>Rank</dt><dd>${run.status==='verified'?(pb?.id===id?`#${pb.rank}`:'Previous verified run'):(run.status==='rejected'?'Not ranked':'Awaiting verification')}</dd></div><div><dt>Run date</dt><dd>${escapeHtml(run.date||'Unknown')}</dd></div><div><dt>Platform</dt><dd>${escapeHtml(run.platform)}</dd></div><div><dt>Region</dt><dd>${escapeHtml(run.region)}</dd></div><div><dt>Timing method</dt><dd>RTA</dd></div><div><dt>Reviewed by</dt><dd>${escapeHtml(run.reviewer||'Not reviewed yet')}</dd></div></dl>${run.rejectionReason?`<div class="notice">Rejection reason: ${escapeHtml(run.rejectionReason)}</div>`:''}<p>${escapeHtml(run.comment)}</p>${runVideo(run.video)}`);}
 function submitForm(){openModal('Submit a run',`<p>Demo submissions are stored in this browser.</p><form id="submit-form"><div id="form-error" role="alert"></div><div class="form-grid"><label class="field full">Runner name<input name="runner" required maxlength="24" value="${escapeHtml(saved.viewer)}" placeholder="Your runner name" autocomplete="nickname"></label><label class="field full">Board type<select id="submission-type"><option value="full">Full game</option><option value="level" ${state.page==='levels'?'selected':''}>Individual level</option></select></label><div class="field full" id="submission-board-fields"></div><label class="field">RTA time<input name="time" required placeholder="2:06:31.420" aria-describedby="time-help"><small id="time-help">H:MM:SS.mmm, MM:SS.mmm or SS.mmm</small></label><div class="field"><label for="run-date">Run date</label><div class="date-control"><input id="run-date" name="date" type="date" required max="2026-10-07" value="2026-10-07"><button type="button" id="date-toggle" popovertarget="run-calendar" aria-label="Choose run date">▦</button></div><section id="run-calendar" class="date-calendar" popover aria-label="Choose run date"></section></div><label class="field">Platform<select name="platform"><option ${state.platform==='snes'?'selected':''}>SNES</option><option>Emulator</option><option ${state.platform==='vc'?'selected':''}>VC</option></select></label><label class="field">Region<select name="region"><option>NTSC-U</option><option>NTSC-J</option><option>PAL</option></select></label><label class="field full">Video URL<input name="video" type="url" required placeholder="https://www.youtube.com/watch?v=…"><small>A public YouTube or Twitch link.</small></label><label class="field full">Comment <small>(optional)</small><textarea name="comment" maxlength="1000" placeholder="Comment"></textarea></label></div><div class="form-actions"><button type="button" class="button secondary" data-close>Cancel</button><button type="submit" class="button">Submit for review</button></div></form>`);renderSubmissionBoardFields();setupRunDatePicker();document.querySelector('[name="time"]').addEventListener('blur',event=>{event.target.value=normalizeTime(event.target.value);});document.querySelector('#submission-type').addEventListener('change',renderSubmissionBoardFields);document.querySelector('#submit-form').addEventListener('submit',event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.target));const timeMs=parseTime(data.time);let error='';let url;try{url=new URL(data.video);}catch{}if(!data.runner.trim())error='Please enter a runner name.';else if(!boards.some(board=>board.slug===data.category))error='Please select a leaderboard.';else if(!timeMs)error='Use a positive time such as 2:06:31.420 or 48:12.050.';else if(data.date>'2026-10-07')error='The run date cannot be in the future.';else if(!videoEmbedUrl(data.video))error='Please use a YouTube video, Twitch VOD or Twitch clip URL.';if(error){document.querySelector('#form-error').innerHTML=`<p class="error">${error}</p>`;return;}saved.viewer=data.runner.trim();saved.runs.push({id:`demo-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,runner:saved.viewer,category:data.category,timeMs,date:data.date,platform:data.platform,region:data.region,video:url.href,comment:data.comment,status:'pending',submittedAt:new Date().toISOString()});persist();modal.close();location.hash='my-runs';state.page='my-runs';render();toast('Run submitted · Pending');});}
@@ -378,6 +440,7 @@ document.addEventListener('click',event=>{const boardLink=event.target.closest('
   else if(target.dataset.reject){const id=target.dataset.reject;openModal('Preview rejection',`<form id="reject-form"><label class="field">Reason<textarea name="reason" required maxlength="500" placeholder="Explain what needs to be corrected."></textarea></label><div class="form-actions"><button class="button secondary" type="button" data-close>Cancel</button><button class="button danger">Reject run</button></div></form>`);document.querySelector('#reject-form').addEventListener('submit',event=>{event.preventDefault();const reason=new FormData(event.target).get('reason').trim();if(!reason)return;const run=saved.runs.find(r=>r.id===id);run.status='rejected';run.reviewer='Demo moderator';run.rejectionReason=reason;persist();modal.close();render();toast('Run rejected.');});}
 });
 modal.addEventListener('click',event=>{if(event.target===modal){const rect=modal.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)modal.close();}});
+modal.addEventListener('close',cancelEloRecommendations);
 document.querySelector('#account-button').addEventListener('click',account);
 // Rule text is independent for each full-game category or individual-level board.
 // Summaries of category and Run Type rules from the public speedrun.com API,

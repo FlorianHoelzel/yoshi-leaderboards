@@ -29,6 +29,24 @@ dialog:has(.runner-profile){width:min(940px,calc(100% - 32px));background:var(--
 .profile-elo-table{min-width:660px}
 .profile-elo-table td:first-child{min-width:190px;white-space:normal}
 .profile-elo-table td{font-variant-numeric:tabular-nums}
+dialog:has(.elo-recommendations){width:min(940px,calc(100% - 32px))}
+.elo-recommendation-header{display:flex;justify-content:space-between;align-items:center;gap:24px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.elo-recommendation-runner{margin:0 0 12px;font-size:22px;color:var(--ink)}
+.elo-recommendation-summary{display:flex;gap:28px;margin:0}
+.elo-recommendation-summary dt{font-size:12px;color:var(--muted)}
+.elo-recommendation-summary dd{margin:3px 0 0;font-size:18px;font-weight:650;font-variant-numeric:tabular-nums}
+.elo-recommendation-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.elo-recommendation-status{font-size:12px;color:var(--muted);margin:16px 0}
+.elo-recommendation-status:empty{display:none}
+.elo-recommendation-note{margin:18px 0 0;padding-top:16px;border-top:1px solid var(--line);font-size:12px;line-height:1.6;color:var(--muted)}
+.elo-recommendation-table{min-width:700px;table-layout:fixed;width:100%}
+.elo-rec-board{width:30%}.elo-rec-current{width:18%}.elo-rec-target{width:27%}.elo-rec-result{width:25%}
+.elo-recommendation-table :is(th,td){padding:14px 12px}
+.elo-recommendation-table td{font-size:14px;font-variant-numeric:tabular-nums;vertical-align:top;white-space:normal}
+.elo-recommendation-table a{color:var(--ink);text-decoration:none;font-weight:600}
+.elo-recommendation-table small{display:block;margin-top:5px;font-size:12px;color:var(--muted);white-space:normal}
+.elo-recommendation-table .elo-points-gain{color:var(--green)}
+@media(max-width:540px){.elo-recommendation-header{align-items:flex-start;flex-direction:column;gap:16px}dialog:has(.elo-recommendations) .modal-body{padding:20px 16px}}
 .profile-filters{display:flex;gap:16px;padding:20px 0}
 .profile-filters label,.profile-progress-select{display:grid;gap:5px;font-size:13px;min-width:0}
 .profile-filters select,.profile-progress-select select{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:8px 10px;max-width:100%;min-width:0}
@@ -311,6 +329,7 @@ dialog:has(.elo-help){width:min(780px,calc(100% - 32px))}
 .elo-help-formula summary{cursor:pointer;font-weight:650}
 .elo-help pre{padding:16px;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere;border-radius:6px;background:var(--soft);color:var(--ink);font:12px/1.65 Consolas,"Courier New",monospace}
 .elo-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:22px}
+.elo-toolbar-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .elo-toolbar label{display:grid;gap:7px;width:320px;max-width:100%;color:var(--muted);font-size:13px}
 .elo-toolbar input{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)}
 .elo-table{table-layout:fixed;min-width:900px}
