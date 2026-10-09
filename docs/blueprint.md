@@ -115,6 +115,28 @@ Possible filters:
 
 # 4. User Accounts
 
+Use Discord authentication through Django + django-allauth. Do not offer local passwords, password registration, or password reset flows. Store a local account linked to Discord's stable user ID; public runner names remain independent of Discord display names. The site manages sessions, run ownership, and permissions. Moderator and admin roles are assigned explicitly by an admin.
+
+Anyone can browse leaderboards and runner profiles without logging in.
+
+## Login and Registration Flow
+
+Add a **Login** button to the site navigation. It opens a dedicated `/login/` page with two options:
+
+- **Login with Discord**
+- **Register with Discord**
+
+Both options authenticate through Discord. Login signs into an existing linked account. If no account exists, direct the user to registration. Registration continues an existing account's incomplete setup or directs a fully registered user to their profile, rather than creating a duplicate account.
+
+After authenticating through **Register with Discord**, ask whether the user wants to:
+
+- **Claim an existing profile**
+- **Create a new profile**
+
+Claiming opens a searchable list of imported runner profiles and then the ownership verification process described below. Creating a profile asks for a runner name and creates a profile linked to the authenticated account. Encourage users with imported runs to claim their existing profile so their history stays together.
+
+An account awaiting claim review can view its claim status and log out, but cannot manage the requested profile or submit runs under it. Show functional claim statuses and any rejection reason.
+
 Users should be able to:
 
 - register
@@ -143,6 +165,28 @@ Avoid requiring unnecessary personal information.
 ---
 
 # 5. Runner Profiles
+
+## Imported Profiles and Ownership
+
+Keep login accounts separate from runner profiles. Imported profiles and their runs exist before anyone registers; their owner is initially unset. Claim approval links an account to the existing profile without moving, duplicating, or reimporting runs. Preserve imported identities, runs, personal bests, and record history.
+
+For the initial version, an account owns at most one runner profile, and a runner profile has at most one owner. Identify Discord accounts by stable provider IDs, not display names. Account deletion or disconnection must not cascade into deletion of historical profiles and runs.
+
+## Profile Claims
+
+1. The signed-in user selects an unclaimed imported profile and submits a claim.
+2. The claim becomes **Pending** and appears in the admin dashboard's claim review queue.
+3. A moderator verifies control of an identity already associated with the imported profile. For example, ask the claimant to place a temporary, expiring claim code on the Speedrun.com profile linked in the imported data, then check that profile directly.
+4. Approval links the account to the runner profile and grants profile management and run submission permissions. Rejection leaves ownership unchanged and includes a reason.
+
+A matching runner name, Discord display name, or pasted profile URL is not proof of ownership. Use trusted source links already associated with the imported runner, rather than links supplied only by the claimant. Discord login proves control of the Discord account; it does not automatically prove ownership of an imported runner profile.
+
+Record the claimant, target profile, status, verification evidence, reviewer, review time, and rejection reason. Pending claims grant no ownership rights. Approval must check that the profile is still unclaimed and the account does not already own another profile. Conflicting claims and disputed ownership require moderator review; never overwrite an existing owner automatically. Record ownership corrections so mistakes and disputes can be resolved.
+
+Possible later improvements:
+
+- Automatic claims when an authenticated identity matches a trusted stable provider ID already associated with the imported runner. For Twitch, this requires adding Twitch authentication and linking it to the signed-in account; Discord login alone cannot establish Twitch ownership.
+- Link a second login provider while authenticated as another way to access the same local account. Do not merge accounts based only on matching names or email addresses.
 
 Example:
 
@@ -420,8 +464,8 @@ Example Django model idea:
 ```python
 class Run(models.Model):
     runner = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE
+        RunnerProfile,
+        on_delete=models.PROTECT
     )
 
     category = models.ForeignKey(
@@ -562,7 +606,7 @@ The ranking style should be decided early.
 
 # 17. Moderation
 
-Initially, use the built-in Django Admin.
+Use the built-in Django Admin initially for run moderation and category management. Provide a dedicated admin dashboard for user registration and profile claim review.
 
 Moderators should be able to:
 
@@ -574,7 +618,20 @@ Moderators should be able to:
 - edit incorrect metadata
 - manage categories
 
-This avoids having to build a custom moderation dashboard immediately.
+## User and Profile Claim Dashboard
+
+Add an authenticated `/dashboard/users/` page, accessible to admins and moderators explicitly granted profile claim review permission. Show a **Dashboard** navigation link only to authorized reviewers. Enforce access permissions on the server for both viewing and review actions.
+
+The dashboard contains:
+
+- **New users**: registrations ordered newest first, showing Discord identity, registration date, selected runner profile or requested username, and setup/claim status. Include users who created a new profile and those who have not completed setup.
+- **Profile claims**: pending claims with claimant, requested runner username/profile, claim date, verification evidence, and links to the imported profile and its trusted source identities. Allow filtering by **Pending**, **Accepted**, and **Rejected**, and searching by runner name or Discord identity.
+
+Opening a claim shows the existing profile's runs and history, ownership state, evidence, and previous review decisions. Provide **Accept** and **Reject** buttons. Acceptance requires verified ownership and the ownership checks described in section 5; link the account to the existing profile and update the status to **Accepted**. Rejection requires a reason, sets the status to **Rejected**, and leaves profile ownership unchanged.
+
+Record each decision with the reviewer and review time, retain it in the dashboard's review history, and show the updated status and rejection reason to the claimant in their account. Protect against duplicate or simultaneous acceptance of conflicting claims. Registration alone does not require approval; review applies to claiming an existing profile/username.
+
+Keep the dashboard functional and support both dark and light themes.
 
 ---
 
@@ -609,6 +666,7 @@ Can:
 Can:
 
 - manage users
+- view new registrations and accept or reject profile claims
 - manage moderators
 - manage categories
 - change site settings
@@ -707,13 +765,25 @@ Runner profile.
 /login/
 ```
 
-Login.
+Dedicated authentication page with **Login with Discord** and **Register with Discord**, opened by the navigation's **Login** button.
 
 ```text
 /register/
 ```
 
-Registration.
+Discord registration onboarding: choose **Claim an existing profile** or **Create a new profile** after authenticating.
+
+```text
+/profile/claim/
+```
+
+Find an imported profile, submit ownership evidence, and view claim status. Authorized reviewers accept or reject claims through the user dashboard.
+
+```text
+/dashboard/users/
+```
+
+Admin dashboard for newly registered users and profile claims, including ownership evidence, acceptance, rejection reasons, and review history.
 
 ```text
 /profile/
@@ -962,7 +1032,10 @@ This could be sent automatically through a Discord webhook.
 Basic requirements:
 
 - Django CSRF protection
-- secure passwords
+- Discord authentication with local password login disabled
+- secure sessions and validated OAuth state and callback URLs
+- stable provider IDs for account identity
+- server-side checks for profile ownership and user roles
 - rate limiting
 - email verification if necessary
 - validate submitted URLs
@@ -1150,21 +1223,22 @@ speedrun-leaderboard/
 
 ```text
 User
- │
- └──── RunnerProfile
- │
- └──── Run
-          │
-          ├──── Category
-          │
-          └──── VerifiedBy → User
+├── Discord identity (stable provider ID)
+├── RunnerProfile (optional; one owner per profile)
+│    └── Run
+│         ├── Category
+│         └── VerifiedBy → User
+└── ProfileClaim
+     ├── Target → RunnerProfile
+     └── ReviewedBy → User
 ```
 
-Potential expanded version:
+RunnerProfile exists independently of User so imported runners can remain unclaimed. Runs reference RunnerProfile rather than the login account.
+
+Potential expanded run relationships:
 
 ```text
-User
-├── RunnerProfile
+RunnerProfile
 └── Run
      ├── Category
      ├── Platform
@@ -1180,9 +1254,13 @@ User
 Version 1 should only contain:
 
 ```text
-✓ Account registration
+✓ Discord registration with claim-or-create onboarding
 
-✓ Login
+✓ Discord login
+
+✓ Profile claims and moderator ownership verification
+
+✓ Admin dashboard for new users and accepting/rejecting profile claims
 
 ✓ Runner profiles
 
@@ -1342,10 +1420,10 @@ None of these are required for the core project.
 ## Phase 4 — Accounts
 
 ```text
-16. Registration
-17. Login
+16. Discord registration and claim-or-create onboarding
+17. Login page with Discord login and registration options
 18. Logout
-19. Profile pages
+19. Profile pages and moderator-reviewed ownership claims
 20. Account settings
 ```
 
@@ -1362,7 +1440,7 @@ None of these are required for the core project.
 ## Phase 6 — Moderation
 
 ```text
-26. Pending run list
+26. Pending run list and user/profile claim dashboard
 27. Verification
 28. Rejection
 29. Moderator notes
@@ -1396,7 +1474,7 @@ None of these are required for the core project.
 ## Phase 9 — Testing
 
 ```text
-45. Test registration
+45. Test Discord registration, login, and existing-account handling
 46. Test run submission
 47. Test verification
 48. Test rankings
@@ -1404,6 +1482,9 @@ None of these are required for the core project.
 50. Test PB replacement
 51. Test rejected runs
 52. Test permissions
+53. Test claim approval, rejection, conflicts, and ownership checks
+54. Test that claims preserve imported runs and history
+55. Test dashboard access, new registration visibility, and claim review history
 ```
 
 ---
@@ -1413,7 +1494,11 @@ None of these are required for the core project.
 The first milestone should be:
 
 ```text
-User registers
+User registers with Discord
+        ↓
+User creates a profile or claims an imported profile
+        ↓
+Moderator verifies ownership if claiming
         ↓
 User submits run
         ↓
