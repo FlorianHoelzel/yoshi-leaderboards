@@ -22,3 +22,29 @@ function profileProgression(runs,category,platform){
   let best=Infinity;
   return dated.filter(run=>{if(run.timeMs>=best)return false;best=run.timeMs;return true;});
 }
+
+function runnerDirectory(runs,boardDefinitions,{type='all',platform='all',search='',sort='name'}={}){
+  const selectedBoards=boardDefinitions.filter(board=>type==='all'||Boolean(board.level)===(type==='levels'));
+  const slugs=new Set(selectedBoards.map(board=>board.slug));
+  const verified=runs.filter(run=>run.status==='verified'&&slugs.has(run.category)&&(platform==='all'||runPlatform(run)===platform));
+  const entries=new Map();
+  for(const run of verified){
+    if(!entries.has(run.runner))entries.set(run.runner,{name:run.runner,runs:0,pbs:0,firsts:0,latest:null});
+    const entry=entries.get(run.runner);entry.runs++;
+    if(!entry.latest||(run.date||'')>(entry.latest.date||'')||((run.date||'')===(entry.latest.date||'')&&run.id.localeCompare(entry.latest.id)<0))entry.latest=run;
+  }
+  for(const board of selectedBoards){
+    for(const boardPlatform of platform==='all'?['snes','vc']:[platform]){
+      for(const run of rankedRuns(verified,board.slug,'all',boardPlatform)){
+        const entry=entries.get(run.runner);entry.pbs++;if(run.rank===1)entry.firsts++;
+      }
+    }
+  }
+  const query=search.trim().toLowerCase();
+  const byName=(a,b)=>a.name.localeCompare(b.name,'en',{sensitivity:'base'})||a.name.localeCompare(b.name);
+  return [...entries.values()].filter(entry=>entry.name.toLowerCase().includes(query)).sort((a,b)=>{
+    if(sort==='latest')return (b.latest.date||'').localeCompare(a.latest.date||'')||byName(a,b);
+    if(['pbs','firsts','runs'].includes(sort))return b[sort]-a[sort]||byName(a,b);
+    return byName(a,b);
+  });
+}

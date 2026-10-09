@@ -104,6 +104,65 @@ function prototype(runs = [], mockFile = 'tests/fixtures/sample-data.js', enable
   return {read: code => vm.runInContext(code, context), element};
 }
 
+test('runner directory counts PBs separately from histories, preserves tied #1s and groups emulator with SNES', () => {
+  const app=prototype([],null);
+  app.read(`globalThis.directoryRuns=[
+    {id:'a',runner:'Fern',category:'warpless',platform:'SNES',timeMs:60000,date:'2026-01-01',status:'verified'},
+    {id:'b',runner:'Fern',category:'warpless',platform:'Emulator',timeMs:50000,date:'2026-02-01',status:'verified'},
+    {id:'c',runner:'Birch',category:'warpless',platform:'SNES',timeMs:50000,date:'2026-03-01',status:'verified'},
+    {id:'d',runner:'Fern',category:'warpless',platform:'VC',timeMs:70000,date:'2026-04-01',status:'verified'},
+    {id:'e',runner:'Birch',category:'il-1-1-any',platform:'Emulator',timeMs:20000,date:'',status:'verified'},
+    {id:'f',runner:'Pending',category:'warpless',platform:'SNES',timeMs:10000,date:'2026-05-01',status:'pending'}
+  ]`);
+  const read=options=>JSON.parse(app.read(`JSON.stringify(runnerDirectory(directoryRuns,boards,${JSON.stringify(options)}))`));
+  const entries=read({});
+  assert.deepEqual(entries.map(entry=>[entry.name,entry.runs,entry.pbs,entry.firsts]),[['Birch',2,2,2],['Fern',3,2,2]]);
+  assert.equal(entries[1].latest.id,'d');
+  assert.deepEqual(read({type:'full',platform:'snes'}).map(entry=>[entry.name,entry.runs,entry.pbs,entry.firsts]),[['Birch',1,1,1],['Fern',2,1,1]]);
+  assert.deepEqual(read({type:'levels'}).map(entry=>entry.name),['Birch']);
+  assert.deepEqual(read({platform:'vc'}).map(entry=>entry.name),['Fern']);
+  assert.deepEqual(read({search:' FERN '}).map(entry=>entry.name),['Fern']);
+  assert.deepEqual(read({sort:'latest'}).map(entry=>entry.name),['Fern','Birch']);
+  assert.deepEqual(read({sort:'runs'}).map(entry=>entry.name),['Fern','Birch']);
+});
+
+test('runner directory renders filtered counts, profile and run links without avatars', () => {
+  const app=prototype();
+  app.read('renderRunners()');
+  assert.match(app.element('main').innerHTML,/Board type/);
+  assert.match(app.element('main').innerHTML,/SNES \/ Emulator/);
+  assert.equal(app.element('#runner-count').textContent,'12 runners');
+  const markup=app.element('#runner-results').innerHTML;
+  assert.match(markup,/PERSONAL BESTS/);
+  assert.match(markup,/data-profile="aura"/);
+  assert.match(markup,/data-run="sample-0-0"/);
+  assert.doesNotMatch(markup,/avatar|runner-card|NaN|undefined/);
+  assert.ok(markup.indexOf('data-profile="aura"')<markup.indexOf('data-profile="puddles"'));
+  app.read("state.runnerType='levels';state.runnerSearch=' ORBIT ';renderRunnerResults()");
+  assert.equal(app.element('#runner-count').textContent,'1 runner');
+  assert.match(app.element('#runner-results').innerHTML,/data-profile="orbit"/);
+  app.read("state.runnerPlatform='vc';renderRunnerResults()");
+  assert.equal(app.element('#runner-count').textContent,'0 runners');
+  assert.match(app.element('#runner-results').innerHTML,/No runners match these filters/);
+});
+
+test('runner directory paginates large lists and clamps stale pages for empty results', () => {
+  const app=prototype([],null);
+  app.read(`saved.runs=Array.from({length:28},(_,i)=>({id:'directory-'+i,runner:'Runner '+String(i).padStart(2,'0'),category:'warpless',platform:'SNES',timeMs:60000+i,date:'',status:'verified'}));renderRunners()`);
+  assert.equal((app.element('#runner-results').innerHTML.match(/data-profile=/g)||[]).length,25);
+  assert.match(app.element('#runner-results').innerHTML,/1–25 of 28 runners/);
+  app.read('state.runnerPage=1;renderRunnerResults()');
+  assert.equal((app.element('#runner-results').innerHTML.match(/data-profile=/g)||[]).length,3);
+  assert.match(app.element('#runner-results').innerHTML,/26–28 of 28 runners/);
+  assert.doesNotMatch(app.element('#runner-results').innerHTML,/Invalid Date/);
+  app.read("state.runnerSearch='missing';renderRunnerResults()");
+  assert.equal(app.read('state.runnerPage'),0);
+  assert.match(app.element('#runner-results').innerHTML,/No runners match/);
+  const empty=prototype([],null);
+  empty.read('renderRunners()');
+  assert.match(empty.element('#runner-results').innerHTML,/No verified runners yet/);
+});
+
 test('CSV mock fixture resolves subcategories and VC and renders all boards and stats', {skip:!fs.existsSync(path.join(__dirname, '..', 'data/mock-runs.json'))}, () => {
   const app = prototype([], 'data/mock-runs.json');
   assert.equal(app.read('sampleRuns.length'), 2441);
