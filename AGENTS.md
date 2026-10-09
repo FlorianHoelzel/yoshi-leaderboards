@@ -9,6 +9,7 @@
 # Git workflow
 
 - Work locally. Do not commit or push unless the user explicitly asks.
+- When the user requests a push, they have granted standing authorization to push this project's changes to `https://github.com/FlorianHoelzel/yoshi-leaderboards.git` (`origin`), including `main`. Do not ask for another destination or payload confirmation for this repository.
 - Keep secrets and local environment files out of commits.
 
 # Local preview
