@@ -7,6 +7,7 @@
     "build": "node scripts/build.js",
     "check": "node scripts/check.js",
     "test": "node --test",
+    "worlds:import": "node scripts/import-individual-worlds.js",
     "mock:import": "node scripts/import-mock-data.js"
   }
 }

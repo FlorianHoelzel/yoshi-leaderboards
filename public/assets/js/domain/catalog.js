@@ -10,7 +10,27 @@ const categories = [
   {slug:'reverse-boss-order',name:'Any%: Reverse Boss Order',label:'Reverse Boss Order',group:'Any%'},
   {slug:'100-percent-no-restrictions',name:'100%: No Restrictions',label:'No Restrictions',group:'100%'},
 ];
-const boards=[...categories,...levelBoards];
+// speedrun.com/yiext Individual Worlds metadata, checked 2026-10-11.
+const worlds = [
+  {slug:'1',name:'World 1',sourceValue:'gq7prvnq'},
+  {slug:'2',name:'World 2',sourceValue:'21g52wxl'},
+  {slug:'3',name:'World 3',sourceValue:'jqz9xr41'},
+  {slug:'4',name:'World 4',sourceValue:'klr9ye0l'},
+  {slug:'5',name:'World 5',sourceValue:'gq7prvrq'},
+  {slug:'6',name:'World 6',sourceValue:'21g52wol'},
+  {slug:'extras',name:'Extras',sourceValue:'jqz9xrk1'},
+];
+const worldCategories = [
+  {slug:'warpless',name:'Warpless',sourceValue:'zqomzp21'},
+  {slug:'100',name:'100%',sourceValue:'013wz83q'},
+  {slug:'warps',name:'Warps',sourceValue:'rqv6jpwl'},
+];
+const worldBoards = worlds.flatMap(world=>worldCategories.map(category=>({
+  slug:`iw-${world.slug}-${category.slug}`,individualWorld:true,world:world.slug,
+  mode:category.slug,label:category.name,name:`${world.name} · ${category.name}`,
+  sourceUrl:`https://www.speedrun.com/yiext?x=n2y53v8k-9l7x40pn.${world.sourceValue}-ylpve4rl.${category.sourceValue}`,
+})));
+const boards=[...categories,...levelBoards,...worldBoards];
 const categoryGroups=['All Main Stages','100%','Any%'].map(name=>({name,categories:categories.filter(cat=>cat.group===name)}));
 
 const startRule='Start timing when selecting a new file.';
@@ -33,3 +53,11 @@ const levelRules={
   timing:['Start timing on the frame the “10” appears.','Stop timing when Yoshi first starts throwing Baby Mario into the goal ring and the camera resumes moving right, or at the first boss explosion frame in boss stages.'],
   bans:['No strategies may depend on setup performed before timing starts.','Do not use eggs or items collected before timing starts.','Do not use Tongue Glitch Cancels that depend on pre-initializing the goal Yoshi sprite slot.','Do not execute ACE payloads written partly before timing starts, or execute ACE before timing to alter routines or stage data.'],
 };
+
+function worldBoardRules(board){
+  return {
+    requirements:[board.world==='extras'?'Complete the Extra stages; any order is allowed.':'Play the selected world’s stages in order.',...(board.mode==='100'?['Complete every stage with a score of 100.']:[]),'Starting from a completed file is allowed.'],
+    timing:['Start timing when selecting the first level on the map screen.',board.world==='6'?'Stop timing on the first frame of Bowser’s explosion.':'Stop timing when the final level’s score screen fades to black.'],
+    bans:['Do not meaningfully use eggs carried over from another world; throwing them all upward at the start is allowed.','Do not use items acquired outside the selected world.',...({warpless:['1-1 warps, Tongue Glitch, and Null Egg.'],'100':['1-1 warps and Null Egg.'],warps:['Null Egg and arbitrary code execution (ACE).']}[board.mode])],
+  };
+}

@@ -248,7 +248,7 @@ html[data-theme="dark"] :is(.category-tabs a.active,.subcategory-tabs a.active){
 @media(prefers-reduced-motion:reduce){.category-group::details-content{transition:none}}
 
 /* Verified-run totals and record history share the leaderboard's theme tokens. */
-.stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:0 0 28px}
+.stats-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;margin:0 0 28px}
 .stat-card{margin:0;padding:20px 22px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);min-width:0}
 .stat-card dt{font-size:14px;color:var(--muted);margin-bottom:8px}
 .stat-card dd{margin:0;font-size:30px;font-weight:650;letter-spacing:-.7px;font-variant-numeric:tabular-nums;line-height:1.3;overflow-wrap:anywhere}

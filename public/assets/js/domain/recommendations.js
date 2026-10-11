@@ -5,13 +5,13 @@ function overallRecommendationCandidates(runs,definitions,name,options={}) {
   for(const {board,platform,pbs} of snapshots){
     const own=pbs.find(run=>run.runner===name);
     if(!own||pbs.length<2)continue;
-    const key=`${board.level?'levels':'full'}/${platform}`;
+    const key=`${boardType(board)}/${platform}`;
     if(!placements.has(key))placements.set(key,[]);
     placements.get(key).push((own.rank-1)/(pbs.length-1));
   }
   const candidates=[];
   for(const {board,platform,pbs} of snapshots){
-    if(options.type&&options.type!=='all'&&Boolean(board.level)!==(options.type==='levels'))continue;
+    if(options.type&&options.type!=='all'&&boardType(board)!==options.type)continue;
     if(options.platform&&options.platform!=='all'&&options.platform!==platform)continue;
     const own=pbs.find(run=>run.runner===name),opponents=pbs.filter(run=>run.runner!==name);
     if(!opponents.length)continue;
@@ -26,7 +26,7 @@ function overallRecommendationCandidates(runs,definitions,name,options={}) {
       targets=[{opponent:next,targetType:'next'},{opponent:stretch,targetType:'stretch'}];
     }else{
       // Do not transfer a full-game percentile to levels, or across platforms.
-      const history=placements.get(`${board.level?'levels':'full'}/${platform}`);
+      const history=placements.get(`${boardType(board)}/${platform}`);
       if(!history||history.length<2||opponents.length<2)continue;
       const sorted=[...history].sort((a,b)=>a-b),mid=Math.floor(sorted.length/2);
       const percentile=sorted.length%2?sorted[mid]:(sorted[mid-1]+sorted[mid])/2;

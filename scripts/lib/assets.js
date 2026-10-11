@@ -17,7 +17,9 @@ function readMockAsset() {
   const data = fs.existsSync(mockDataPath)
     ? JSON.parse(fs.readFileSync(mockDataPath, 'utf8'))
     : {enabled:false, runs:[]};
-  return `globalThis.YOSHI_MOCK_DATA = ${JSON.stringify(data)};\n`;
+  const worldPath = path.join(root, 'data/individual-worlds.json');
+  const worlds = fs.existsSync(worldPath) ? JSON.parse(fs.readFileSync(worldPath, 'utf8')) : {runs:[]};
+  return `globalThis.YOSHI_MOCK_DATA = ${JSON.stringify(data)};\nglobalThis.YOSHI_WORLD_DATA = ${JSON.stringify(worlds)};\n`;
 }
 
 module.exports = {root, publicRoot, mockAsset, publicAssets, readMockAsset};

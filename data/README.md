@@ -26,3 +26,9 @@ The importer resolves full-game Run Type and VC values from speedrun.com metadat
 Imported records are never saved to browser storage. Local submissions use the existing `yoshi-visual-prototype-v1` key with `{ runs, viewer }`. That shape and key remain unchanged so existing browser data survives this reorganization.
 
 `tests/fixtures/sample-data.js` is a separate fictional fixture for behavior tests.
+
+## Individual Worlds
+
+`individual-worlds.json` contains the public speedrun.com/yiext Individual Worlds snapshot, including source category and variable metadata. It covers World 1–6 and Extras with Warpless, 100%, and Warps. Refresh it with `npm run worlds:import`; the importer follows run pagination and refuses to replace the snapshot when any run cannot be mapped.
+
+Builds package this snapshot alongside the optional mock dataset as `YOSHI_WORLD_DATA`. World runs load independently of the mock-data toggle and are never written to browser storage. They use `iw-<world>-<mode>` board slugs and real-time integer milliseconds. Only verified personal bests rank; previous verified records remain available in profiles and history. Source platform labels are retained (including Switch), with SNES and emulators on the combined board and local VC submissions on their separate board.

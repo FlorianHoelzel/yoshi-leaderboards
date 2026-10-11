@@ -80,7 +80,7 @@ test('wheel zoom anchors the cursor and drag pan clamps at the history edges', (
   assert.equal(app.read('view.end'),86400000*16);
 });
 
-function prototype(runs = [], mockFile = 'tests/fixtures/sample-data.js', enabled = true) {
+function prototype(runs = [], mockFile = 'tests/fixtures/sample-data.js', enabled = true, worldData = null) {
   const elements = new Map();
   const element = selector => {
     if (!elements.has(selector)) elements.set(selector, {
@@ -97,6 +97,7 @@ function prototype(runs = [], mockFile = 'tests/fixtures/sample-data.js', enable
     window: {scrollTo() { this.scrollResets=(this.scrollResets||0)+1; }, addEventListener() {}},
   });
   for (const file of ['public/assets/js/domain/levels.js', 'public/assets/js/domain/catalog.js', 'public/assets/js/domain/time.js', 'public/assets/js/domain/runs.js', 'public/assets/js/domain/ratings.js', mockFile, 'public/assets/js/data/store.js', 'public/assets/js/app.js'].filter(Boolean)) {
+    if (file === 'public/assets/js/data/store.js' && worldData) vm.runInContext(`globalThis.YOSHI_WORLD_DATA=${JSON.stringify(worldData)}`, context);
     if (file === 'public/assets/js/data/store.js' && !enabled) vm.runInContext('globalThis.YOSHI_MOCK_DATA.enabled=false', context);
     const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
     vm.runInContext(file.endsWith('.json') ? `globalThis.YOSHI_MOCK_DATA=${source}` : source, context);
@@ -450,7 +451,7 @@ test('stats count verified histories and sum integer RTA across full-game and le
     {category:'warpless',runner:'pendingrunner',timeMs:1000,status:'pending'},
     {category:'il-1-1-any',runner:'rejectedrunner',timeMs:2000,status:'rejected'}
   ]`);
-  assert.deepEqual(JSON.parse(app.read('JSON.stringify(speedrunStats(statsRuns))')), {total:3,fullGame:2,levels:1,players:2,timeMs:90060006});
+  assert.deepEqual(JSON.parse(app.read('JSON.stringify(speedrunStats(statsRuns))')), {total:3,fullGame:2,levels:1,worlds:0,players:2,timeMs:90060006});
   assert.equal(app.read('totalRunTime(90060006)'), '1d 1h 1m 0s 6ms');
   assert.equal(app.read('speedrunStats([]).total'), 0);
   assert.equal(app.read('totalRunTime(0)'), '0d 0h 0m 0s 0ms');
@@ -643,4 +644,72 @@ test('level submissions survive reload, stay isolated, and only verified PBs ran
   assert.equal(app.read("boardHref(boards.find(board=>board.slug==='il-2-E-100'))"), '#levels/2/2-E/100');
   app.read("location.hash='#levels/99/invalid/invalid';route()");
   assert.equal(app.read('currentCategory().slug'), 'il-1-1-any');
+});
+
+
+test('all Individual Worlds routes include Extras, retain platform and isolate run types',()=>{
+  const app=prototype();
+  assert.equal(app.read('worldBoards.length'),21);
+  assert.match(app.element('#category-nav').innerHTML,/Individual Worlds/);
+  for(const world of ['1','2','3','4','5','6','extras'])for(const mode of ['warpless','100','warps']){
+    app.read(`location.hash='#worlds/${world}/${mode}?platform=vc';route()`);
+    assert.equal(app.read('currentCategory().slug'),`iw-${world}-${mode}`);
+    assert.equal(app.read('boardHref(currentCategory())'),`#worlds/${world}/${mode}?platform=vc`);
+    assert.match(app.element('main').innerHTML,/Individual worlds/);
+    assert.match(app.element('main').innerHTML,/#stats\/iw-/);
+    app.read(`showBoardRules('iw-${world}-${mode}')`);
+    assert.match(app.element('#modal-content').innerHTML,/map screen/);
+    assert.match(app.element('#modal-content').innerHTML,world==='6'?/Bowser’s explosion/:/fades to black/);
+  }
+  app.read("location.hash='#worlds/unknown/unknown';route()");
+  assert.equal(app.read('currentCategory().slug'),'iw-extras-warps');
+  app.read("location.hash='#stats/iw-6-100';route()");
+  assert.match(app.element('main').innerHTML,/#stats\/iw-extras-100/);
+  assert.doesNotMatch(app.element('main').innerHTML,/il-undefined/);
+});
+
+test('world runs persist, rank with ties and filter separately from full game and levels',()=>{
+  const runs=[
+    {id:'a',runner:'Fern',category:'iw-1-warpless',timeMs:60001,date:'2026-01-01',platform:'SNES',status:'verified'},
+    {id:'b',runner:'Birch',category:'iw-1-warpless',timeMs:60001,date:'2026-01-02',platform:'Emulator',status:'verified'},
+    {id:'c',runner:'Moss',category:'iw-1-warpless',timeMs:60002,date:'2026-01-03',platform:'SNES',status:'verified'},
+    {id:'d',runner:'Fern',category:'iw-1-warpless',timeMs:70001,date:'2025-01-01',platform:'SNES',status:'verified'},
+    {id:'e',runner:'Fern',category:'iw-1-100',timeMs:90001,date:'2026-01-01',platform:'SNES',status:'verified'},
+    {id:'p',runner:'Pending',category:'iw-1-warpless',timeMs:1,date:'2026-01-01',platform:'SNES',status:'pending'},
+    {id:'v',runner:'VC',category:'iw-1-warpless',timeMs:50001,date:'2026-01-01',platform:'VC',status:'verified'},
+  ];
+  const app=prototype(runs,null);
+  assert.equal(app.read('saved.runs.length'),7);
+  assert.equal(app.read("JSON.stringify(bestRuns('iw-1-warpless').map(run=>run.rank))"),'[1,1,3]');
+  assert.equal(app.read("runnerDirectory(allRuns(),boards,{type:'full'}).length"),0);
+  assert.equal(app.read("runnerDirectory(allRuns(),boards,{type:'levels'}).length"),0);
+  assert.equal(app.read("runnerDirectory(allRuns(),boards,{type:'worlds'}).length"),4);
+  assert.equal(app.read('speedrunStats().worlds'),6);
+  assert.equal(app.read('speedrunStats().fullGame'),0);
+  app.read("profile('Fern');profileState.type='worlds';renderProfileContent()");
+  assert.match(app.element('#profile-content').innerHTML,/World 1 · Warpless/);
+  app.read("runDetails('a')");
+  assert.match(app.element('#modal-content').innerHTML,/#worlds\/1\/warpless/);
+  assert.ok(app.read('overallRatings(allRuns(),boards).every(entry=>entry.rating===null||Number.isFinite(entry.rating))'));
+  app.read("state.world='extras';state.worldCategory='100'");
+  app.element('#submission-type').value='world';
+  app.element('#submission-world').value='extras';
+  app.element('#submission-mode').value='100';
+  app.read('renderSubmissionBoardFields()');
+  assert.equal(app.element('#submission-category').value,'iw-extras-100');
+  app.element('#submission-world').value='6';
+  app.element('#submission-world').handlers.change();
+  assert.equal(app.element('#submission-category').value,'iw-6-100');
+});
+
+test('source world snapshot loads independently from mock data without browser persistence',()=>{
+  const snapshot=JSON.parse(fs.readFileSync(path.join(__dirname,'../data/individual-worlds.json'),'utf8'));
+  const app=prototype([],null,true,snapshot);
+  assert.equal(app.read('allRuns().length'),snapshot.runs.length);
+  assert.equal(app.read('saved.runs.length'),0);
+  assert.ok(app.read("bestRuns('iw-1-warpless').length")>0);
+  assert.ok(snapshot.runs.every(run=>Number.isSafeInteger(run.timeMs)&&run.timeMs>0));
+  assert.ok(snapshot.runs.every(run=>app.read(`boards.some(board=>board.slug===${JSON.stringify(run.category)})`)));
+  app.read(`runDetails(${JSON.stringify(snapshot.runs[0].id)})`);
+  assert.match(app.element('#modal-content').innerHTML,/speedrun.com run/);
 });

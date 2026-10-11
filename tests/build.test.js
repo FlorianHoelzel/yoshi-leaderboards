@@ -49,3 +49,16 @@ test('mock asset supports disabled and missing JSON without changing stored subm
     fs.readFileSync = read;
   }
 });
+
+test('build packages the independent world snapshot even when mock data is unavailable',()=>{
+  const exists=fs.existsSync;
+  try {
+    fs.existsSync=file=>file===path.join(root,'data/mock-runs.json')?false:exists(file);
+    const context=vm.createContext({});
+    vm.runInContext(readMockAsset(),context);
+    const worlds=JSON.parse(fs.readFileSync(path.join(root,'data/individual-worlds.json'),'utf8'));
+    assert.equal(context.YOSHI_MOCK_DATA.enabled,false);
+    assert.equal(JSON.stringify(context.YOSHI_WORLD_DATA),JSON.stringify(worlds));
+    assert.ok(context.YOSHI_WORLD_DATA.runs.length>0);
+  }finally{fs.existsSync=exists;}
+});

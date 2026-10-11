@@ -48,7 +48,7 @@ function overallPairWeight(weight,a,b,exposure,rankA,rankB) {
   return weight*overallPlacementWeight(rankA,rankB)/Math.sqrt(1+(exposure.get(a)+exposure.get(b))/2);
 }
 function overallRatings(runs, boardDefinitions, initialRatings=[]) {
-  const groups = {full: [], levels: []};
+  const groups = {full: [], levels: [], worlds: []};
   const people = new Map();
   for (const board of [...boardDefinitions].sort((a,b)=>a.slug.localeCompare(b.slug))) {
     for (const platform of ['snes', 'vc']) {
@@ -57,7 +57,7 @@ function overallRatings(runs, boardDefinitions, initialRatings=[]) {
         if (!people.has(run.runner)) people.set(run.runner, {name:run.runner, pbs:0, comparedBoards:0, opponents:new Set()});
         people.get(run.runner).pbs++;
       }
-      if (pbs.length > 1) groups[board.level ? 'levels' : 'full'].push(pbs);
+      if (pbs.length > 1) groups[boardType(board)].push(pbs);
     }
   }
   const entries = [...people.values()].sort((a,b)=>a.name.localeCompare(b.name));
@@ -124,7 +124,7 @@ function overallRatings(runs, boardDefinitions, initialRatings=[]) {
 let overallRatingCache={key:null,entries:[]};
 function cachedOverallRatings(runs, boardDefinitions) {
   const pbs=boardDefinitions.flatMap(board=>['snes','vc'].flatMap(platform=>
-    rankedRuns(runs,board.slug,'all',platform).map(run=>[board.slug,Boolean(board.level),platform,run.runner,run.timeMs])));
+    rankedRuns(runs,board.slug,'all',platform).map(run=>[board.slug,boardType(board),platform,run.runner,run.timeMs])));
   const key=JSON.stringify([overallEloVersion,pbs]);
   if(key!==overallRatingCache.key) overallRatingCache={key,entries:overallRatings(runs,boardDefinitions)};
   return overallRatingCache.entries;
@@ -133,7 +133,7 @@ function cachedOverallRatings(runs, boardDefinitions) {
 // Strongest PB = largest signed contribution under the fitted comparison weights.
 function overallRatingHighlights(runs, boardDefinitions, ratings) {
   const entries=new Map(ratings.map(entry=>[entry.name,{...entry,strongestRun:null,latestRun:null,strongestContribution:null,strongestPoints:0,latestPoints:0,totalPoints:0,pbContributions:[]}]));
-  const groups={full:[],levels:[]};
+  const groups={full:[],levels:[],worlds:[]};
   const validBoards=new Set(boardDefinitions.map(board=>board.slug));
   for(const run of runs){
     if(run.status!=='verified'||!validBoards.has(run.category))continue;
@@ -143,7 +143,7 @@ function overallRatingHighlights(runs, boardDefinitions, ratings) {
   for(const board of [...boardDefinitions].sort((a,b)=>a.slug.localeCompare(b.slug))){
     for(const platform of ['snes','vc']){
       const pbs=rankedRuns(runs,board.slug,'all',platform);
-      if(pbs.length>1)groups[board.level?'levels':'full'].push(pbs);
+      if(pbs.length>1)groups[boardType(board)].push(pbs);
       for(const run of pbs){
         const entry=entries.get(run.runner);
         if(!entry.strongestRun)entry.strongestRun=run;

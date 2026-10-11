@@ -1,3 +1,4 @@
+const boardType=board=>board?.level?'levels':board?.individualWorld?'worlds':'full';
 // Leaderboard queries. Inputs are explicit so this layer does not depend on the UI.
 const runPlatform=run=>run.platform==='VC'?'vc':'snes';
 function rankedRuns(runs,category,region='all',platform='snes'){
@@ -5,11 +6,13 @@ function rankedRuns(runs,category,region='all',platform='snes'){
   const seen=new Set();let previous=null,rank=0;
   return sorted.filter(r=>{if(seen.has(r.runner))return false;seen.add(r.runner);return true;}).map((r,i)=>{if(r.timeMs!==previous)rank=i+1;previous=r.timeMs;return {...r,rank};});
 }
-function runStats(runs,levelBoardDefinitions){
+function runStats(runs,levelBoardDefinitions,worldBoardDefinitions){
   const verified=runs.filter(run=>run.status==='verified');
   const levelSlugs=new Set(levelBoardDefinitions.map(board=>board.slug));
   const levelRuns=verified.filter(run=>levelSlugs.has(run.category)).length;
-  return {total:verified.length,fullGame:verified.length-levelRuns,levels:levelRuns,players:new Set(verified.map(run=>run.runner)).size,timeMs:verified.reduce((sum,run)=>sum+run.timeMs,0)};
+  const worldSlugs=new Set((worldBoardDefinitions||[]).map(board=>board.slug));
+  const worldRuns=verified.filter(run=>worldSlugs.has(run.category)).length;
+  return {...(worldBoardDefinitions?{worlds:worldRuns}:{}),total:verified.length,fullGame:verified.length-levelRuns-worldRuns,levels:levelRuns,players:new Set(verified.map(run=>run.runner)).size,timeMs:verified.reduce((sum,run)=>sum+run.timeMs,0)};
 }
 function worldRecordProgression(category,runs,platform='snes'){
   // Dates have day precision: use the fastest verified run for each day.
@@ -24,7 +27,7 @@ function profileProgression(runs,category,platform){
 }
 
 function runnerDirectory(runs,boardDefinitions,{type='all',platform='all',search='',sort='name'}={}){
-  const selectedBoards=boardDefinitions.filter(board=>type==='all'||Boolean(board.level)===(type==='levels'));
+  const selectedBoards=boardDefinitions.filter(board=>type==='all'||boardType(board)===type);
   const slugs=new Set(selectedBoards.map(board=>board.slug));
   const verified=runs.filter(run=>run.status==='verified'&&slugs.has(run.category)&&(platform==='all'||runPlatform(run)===platform));
   const entries=new Map();

@@ -21,7 +21,8 @@ try {
   // Invalid or inaccessible browser storage starts an empty local session.
 }
 
-const allRuns = () => [...sampleRuns, ...saved.runs];
+const importedWorldRuns = globalThis.YOSHI_WORLD_DATA?.runs || [];
+const allRuns = () => [...sampleRuns, ...importedWorldRuns, ...saved.runs];
 
 function persist() {
   try {
