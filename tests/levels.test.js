@@ -711,5 +711,9 @@ test('source world snapshot loads independently from mock data without browser p
   assert.ok(snapshot.runs.every(run=>Number.isSafeInteger(run.timeMs)&&run.timeMs>0));
   assert.ok(snapshot.runs.every(run=>app.read(`boards.some(board=>board.slug===${JSON.stringify(run.category)})`)));
   app.read(`runDetails(${JSON.stringify(snapshot.runs[0].id)})`);
-  assert.match(app.element('#modal-content').innerHTML,/speedrun.com run/);
+  const details=app.element('#modal-content').innerHTML;
+  assert.match(details,/Run details/);
+  assert.ok(details.includes(app.read(`escapeHtml(${JSON.stringify(snapshot.runs[0].runner)})`)));
+  assert.ok(details.includes(app.read(`formatTime(${snapshot.runs[0].timeMs})`)));
+  assert.doesNotMatch(details,/speedrun.com run/);
 });
