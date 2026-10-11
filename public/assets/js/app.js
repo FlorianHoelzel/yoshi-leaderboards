@@ -31,7 +31,7 @@ function render(){
   document.querySelector('#breadcrumbs').innerHTML=crumbs.map((crumb,index)=>`<li>${index?'<span class="breadcrumb-separator" aria-hidden="true">/</span>':''}${index===crumbs.length-1?`<strong aria-current="page">${escapeHtml(crumb.label)}</strong>`:`<a href="${crumb.href}">${escapeHtml(crumb.label)}</a>`}</li>`).join('');
   document.querySelectorAll('[data-page]').forEach(link=>{const active=link.dataset.page===state.page||(link.dataset.page==='leaderboard'&&['levels','worlds','rules'].includes(state.page));link.classList.toggle('active',active);active?link.setAttribute('aria-current','page'):link.removeAttribute('aria-current');});
   const categoryNav=document.querySelector('#category-nav');
-  if(!categoryNav.innerHTML)categoryNav.innerHTML=groupedCategories(cat=>`<a href="#leaderboard/${cat.slug}">${cat.label}</a>`,new Set())+levelNavigation(new Set())+worldNavigation();
+  if(!categoryNav.innerHTML)categoryNav.innerHTML='<h2 class="category-section-label">Main Categories</h2>'+groupedCategories(cat=>`<a href="#leaderboard/${cat.slug}">${cat.label}</a>`,new Set())+'<h2 class="category-section-label category-section-divider">Category Extension</h2>'+levelNavigation(new Set())+worldNavigation();
   categoryNav.querySelectorAll('summary').forEach(summary=>summary.classList.toggle('selected',summary.parentElement.dataset.group===(state.page==='worlds'?'worlds':state.page==='levels'?'levels':state.page==='leaderboard'?currentCategory().group:null)));
   categoryNav.querySelectorAll('a').forEach(link=>{
     const worldLink=link.getAttribute('href').match(/^#worlds\/([^/?]+)\//);
