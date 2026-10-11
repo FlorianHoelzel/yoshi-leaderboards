@@ -5,6 +5,7 @@
 - Do not use the user's personal name in sample data, placeholders, or examples. Use fictional runner names.
 - Preserve the eight configured categories, combined SNES/emulator boards, RTA in integer milliseconds, and competition ranking (1, 1, 3).
 - Maintain both dark and light themes when changing UI.
+- Use the shared `.timing-value` class and `--font-time` monospace stack for every timing value, including run times, durations, improvements, chart time labels, and timing inputs. Keep surrounding labels and dates in the regular UI font; do not introduce separate timing font stacks.
 
 # Git workflow
 
