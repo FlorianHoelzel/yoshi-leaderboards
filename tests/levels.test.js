@@ -187,6 +187,26 @@ test('overview renders every stage and preserves runner, category and platform i
   assert.doesNotMatch(app.element('main').innerHTML,/NaN|Infinity/);
 });
 
+test('overview shows the selected PB contribution from overall Elo on each platform',()=>{
+  const app=prototype([
+    {id:'fern',runner:'Fern',category:'il-1-1-any',platform:'SNES',timeMs:10000,date:'',status:'verified'},
+    {id:'birch',runner:'Birch',category:'il-1-1-any',platform:'Emulator',timeMs:12000,date:'',status:'verified'},
+    {id:'old',runner:'Fern',category:'il-1-1-any',platform:'SNES',timeMs:15000,date:'',status:'verified'},
+    {id:'fern-vc',runner:'Fern',category:'il-1-1-any',platform:'VC',timeMs:20000,date:'',status:'verified'},
+    {id:'birch-vc',runner:'Birch',category:'il-1-1-any',platform:'VC',timeMs:18000,date:'',status:'verified'},
+    {id:'solo',runner:'Fern',category:'il-1-2-any',platform:'SNES',timeMs:12000,date:'',status:'verified'},
+  ],null);
+  for(const platform of ['snes','vc']){
+    app.read(`location.hash='#level-overview?runner=Fern&platform=${platform}';route()`);
+    const points=app.read(`overallRatingHighlights(allRuns(),boards,cachedOverallRatings(allRuns(),boards)).find(entry=>entry.name==='Fern').pbContributions.find(entry=>entry.runId==='${platform==='vc'?'fern-vc':'fern'}').points`);
+    assert.ok(platform==='vc'?points<0:points>0);
+    const indicator=app.read(`eloPointIndicator(${points})`);
+    assert.ok(app.element('main').innerHTML.includes(`<dt>Elo contribution</dt><dd>${indicator}</dd>`));
+    assert.match(app.element('main').innerHTML,/<dt>Elo contribution<\/dt><dd>—<\/dd>/);
+    if(platform==='snes')assert.match(app.element('main').innerHTML,/<dt>Elo contribution<\/dt><dd><span[^>]*title="[^"]*">0 points<\/span>/);
+  }
+});
+
 test('Elo recommendations use the test identity without selectors, and support cancellation and retry',()=>{
   const app=prototype([
     {id:'v',runner:'Volpey',category:'warpless',platform:'SNES',timeMs:60000,date:'',status:'verified'},

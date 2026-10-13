@@ -26,10 +26,12 @@
 .level-overview-stage-heading span{color:var(--muted);text-align:right}
 .level-overview-stage h4{margin:10px 0 20px;font-size:14px;font-weight:500;line-height:1.5;overflow-wrap:anywhere}
 .level-overview-stage dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:auto 0 0}
-.level-overview-stage dl>div:last-child{grid-column:1/-1;padding-top:10px;border-top:1px solid var(--line)}
+.level-overview-stage dl>div:nth-child(n+3){padding-top:10px;border-top:1px solid var(--line)}
 .level-overview-stage dt{font-size:11px;color:var(--muted);margin-bottom:4px}
 .level-overview-stage dd{margin:0;font-size:16px;font-weight:600;overflow-wrap:anywhere}
-.level-overview-stage dl>div:last-child dd{font-size:13px}
+.level-overview-stage dl>div:nth-child(n+3) dd{font-size:13px}
+.level-overview-elo{text-align:right}
+.level-overview-elo .elo-run-points{justify-content:flex-end}
 .level-overview-stage.missing-pb{background:var(--bg);border-style:dashed}
 .level-overview-record .level-overview-stage-heading span{color:#2f6342;font-weight:700}
 html[data-theme="dark"] .level-overview-record .level-overview-stage-heading span{color:#a6d69b}
