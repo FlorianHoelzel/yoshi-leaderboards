@@ -84,8 +84,9 @@ function prototype(runs = [], mockFile = 'tests/fixtures/sample-data.js', enable
   const elements = new Map();
   const element = selector => {
     if (!elements.has(selector)) elements.set(selector, {
-      innerHTML: '', textContent: '', addEventListener(event,handler) {this.handlers??={};this.handlers[event]=handler;}, setAttribute() {}, querySelectorAll: () => [],
+      innerHTML: '', textContent: '', addEventListener(event,handler) {this.handlers??={};this.handlers[event]=handler;}, setAttribute(name,value) {this.attributes??={};this.attributes[name]=value;}, removeAttribute(name) {delete this.attributes?.[name];}, querySelectorAll: () => [],
       classList: {toggle() {}, add() {}, remove() {}}, showModal() {},
+      setCustomValidity(message) {this.validationMessage=message;}, reportValidity() {this.validityReported=true;},
     });
     return elements.get(selector);
   };
@@ -104,6 +105,87 @@ function prototype(runs = [], mockFile = 'tests/fixtures/sample-data.js', enable
   }
   return {read: code => vm.runInContext(code, context), element};
 }
+
+test('level overview uses verified PBs, competition ranks and separate platform boards',()=>{
+  const runs=[
+    {id:'record',runner:'Birch',category:'il-1-1-any',platform:'SNES',timeMs:10001,date:'',status:'verified'},
+    {id:'tied',runner:'Cedar',category:'il-1-1-any',platform:'Emulator',timeMs:10001,date:'2026-01-01',status:'verified'},
+    {id:'pb',runner:'Fern',category:'il-1-1-any',platform:'Emulator',timeMs:11002,date:'',status:'verified'},
+    {id:'older',runner:'Fern',category:'il-1-1-any',platform:'SNES',timeMs:13000,date:'2025-01-01',status:'verified'},
+    {id:'pending',runner:'Fern',category:'il-1-1-any',platform:'SNES',timeMs:9000,date:'',status:'pending'},
+    {id:'rejected',runner:'Fern',category:'il-1-2-any',platform:'SNES',timeMs:9000,date:'',status:'rejected'},
+    {id:'vc',runner:'Fern',category:'il-1-1-any',platform:'VC',timeMs:8000,date:'',status:'verified'},
+    {id:'hundred',runner:'Fern',category:'il-1-1-100',platform:'SNES',timeMs:20000,date:'',status:'verified'},
+  ];
+  const app=prototype(runs,null);
+  app.read("globalThis.overview=individualLevelOverview(allRuns(),levels,'Fern','any','snes')");
+  assert.equal(app.read('overview.length'),54);
+  assert.equal(app.read('overview[0].pb.id'),'pb');
+  assert.equal(app.read('overview[0].pb.rank'),3);
+  assert.equal(app.read('overview[0].gapMs'),1001);
+  assert.equal(app.read('overview[1].pb'),null);
+  assert.equal(app.read('overview[1].record'),null);
+  assert.equal(app.read("individualLevelOverview(allRuns(),levels,'Cedar')[0].gapMs"),0);
+  assert.equal(app.read("individualLevelOverview(allRuns(),levels,'Cedar')[0].pb.rank"),1);
+  assert.equal(app.read("individualLevelOverview(allRuns(),levels,'Fern','any','vc')[0].pb.id"),'vc');
+  assert.equal(app.read("individualLevelOverview(allRuns(),levels,'Fern','100','snes')[0].pb.id"),'hundred');
+});
+
+test('overview renders every stage and preserves runner, category and platform in navigation',()=>{
+  const app=prototype([
+    {id:'fern',runner:'Fern & Cedar',category:'il-1-1-100',platform:'VC',timeMs:12123,date:'',status:'verified'},
+    {id:'birch',runner:'Birch',category:'il-1-1-100',platform:'VC',timeMs:11122,date:'',status:'verified'},
+  ],null);
+  app.read("location.hash='#level-overview?runner=Fern+%26+Cedar&mode=100&platform=vc';route()");
+  const content=app.element('main').innerHTML;
+  assert.equal((content.match(/class="level-overview-stage /g)||[]).length,54);
+  assert.equal((content.match(/aria-labelledby="overview-world-/g)||[]).length,6);
+  assert.match(content,/1 \/ 54/);
+  assert.match(content,/53<\/strong> without a PB/);
+  assert.match(content,/Rank #2/);
+  assert.match(content,/\+0:01\.001/);
+  assert.match(content,/Fern &amp; Cedar/);
+  assert.match(content,/type="search" role="combobox"/);
+  assert.doesNotMatch(content,/<datalist|list="overview-runner-options"/);
+  assert.match(content,/#levels\/6\/6-E\/100\?platform=vc/);
+  assert.equal(app.read('state.overviewRunner'),'Fern & Cedar');
+  assert.equal(app.read('levelOverviewHref()'),'#level-overview?mode=100&runner=Fern+%26+Cedar&platform=vc');
+  app.element('#overview-mode').handlers.change({target:{value:'any'}});
+  assert.equal(app.read('location.hash'),'#level-overview?mode=any&runner=Fern+%26+Cedar&platform=vc');
+  app.read('route()');
+  assert.match(app.element('main').innerHTML,/0 \/ 54/);
+  const input=app.element('#overview-runner'),suggestions=app.element('#overview-runner-options');
+  input.value='Unknown runner';input.handlers.input();
+  assert.match(suggestions.innerHTML,/No matching runners/);
+  input.handlers.keydown({key:'Enter',preventDefault(){}});
+  assert.equal(app.read('state.overviewRunner'),'Fern & Cedar');
+  input.value='bir';input.handlers.input();
+  assert.match(suggestions.innerHTML,/Birch/);
+  assert.doesNotMatch(suggestions.innerHTML,/Fern/);
+  assert.equal(suggestions.hidden,false);
+  assert.equal(input.attributes['aria-expanded'],'true');
+  input.handlers.keydown({key:'ArrowDown',preventDefault(){}});
+  assert.equal(input.attributes['aria-activedescendant'],'runner-option-0');
+  input.handlers.keydown({key:'Enter',preventDefault(){}});
+  assert.equal(suggestions.hidden,true);
+  assert.match(app.read('location.hash'),/runner=Birch/);
+  input.value='fern';input.handlers.input();
+  assert.match(suggestions.innerHTML,/Fern &amp; Cedar/);
+  suggestions.handlers.click({target:{closest:()=>({dataset:{runnerIndex:'0'}})}});
+  assert.match(app.read('location.hash'),/runner=Fern\+%26\+Cedar/);
+  input.value='bir';input.handlers.input();
+  input.handlers.keydown({key:'Escape',preventDefault(){}});
+  assert.equal(input.value,'Fern & Cedar');
+  assert.equal(suggestions.hidden,true);
+  input.value=' birch ';input.handlers.keydown({key:'Enter',preventDefault(){}});
+  app.read("location.hash='#levels/1/1-1/any?platform=vc';route()");
+  assert.match(app.read('levelNavigation(new Set())'),/#level-overview\?mode=any&runner=Birch&platform=vc/);
+  app.read("location.hash='#level-overview?runner=Unknown&mode=invalid';route()");
+  assert.equal(app.read('state.levelCategory'),'any');
+  assert.equal(app.read('state.platform'),'snes');
+  assert.match(app.element('main').innerHTML,/No verified PB/);
+  assert.doesNotMatch(app.element('main').innerHTML,/NaN|Infinity/);
+});
 
 test('Elo recommendations use the test identity without selectors, and support cancellation and retry',()=>{
   const app=prototype([

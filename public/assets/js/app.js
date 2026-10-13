@@ -10,7 +10,7 @@ function categorySelector(cat){
   return `<div class="board-header"><div class="category-tabs" role="group" aria-label="Category">${categoryGroups.map(group=>`<button data-category="${selectedGroupCategories[group.name]||group.categories[0].slug}" class="${group.name===cat.group?'active':''}" aria-pressed="${group.name===cat.group}">${group.name||'100%'}</button>`).join('')}</div>${boardActions(cat)}</div><div class="board-filters"><div class="run-type-selector"><span class="filter-label">Run Type</span>${group.name?`<div class="subcategory-tabs" role="group" aria-label="${group.name} subcategories">${group.categories.map(c=>`<button data-category="${c.slug}" class="${c.slug===cat.slug?'active':''}" aria-pressed="${c.slug===cat.slug}">${c.label}</button>`).join('')}</div>`:''}</div>${platformSelector()}</div>`;
 }
 // Optional, disposable fixture; never persisted with user submissions.
-let state={page:'leaderboard',category:categoryGroups[0].categories[0].slug,level:'1-1',levelCategory:'any',world:'1',worldCategory:'warpless',region:'all',search:'',statsBoard:'warpless',statsView:'chart',platform:'snes'};
+let state={page:'leaderboard',category:categoryGroups[0].categories[0].slug,level:'1-1',levelCategory:'any',overviewRunner:'',world:'1',worldCategory:'warpless',region:'all',search:'',statsBoard:'warpless',statsView:'chart',platform:'snes'};
 const main=document.querySelector('main');
 const modal=document.querySelector('#modal');
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -23,22 +23,23 @@ function recordProgression(category,runs=allRuns(),platform=state.platform){retu
 function runnerCountry(name,tag='p'){const country=runners.find(r=>r.name===name)?.country;return country?`<${tag} class="runner-location">${escapeHtml(country)}</${tag}>`:'';}
 function profileButton(name){return `<button class="runner-button" data-profile="${escapeHtml(name)}" title="${escapeHtml(name)}"><span>${escapeHtml(name)}${runnerCountry(name,'span')}</span></button>`;}
 function render(){
-  const sectionNames={leaderboard:'Leaderboards',levels:'Individual levels',worlds:'Individual worlds',runners:'Runners',elo:'Elo',resources:'Resources',stats:'Stats',rules:'Rules & resources','my-runs':'My submissions'};
+  const sectionNames={leaderboard:'Leaderboards',levels:'Individual levels','level-overview':'Individual-level overview',worlds:'Individual worlds',runners:'Runners',elo:'Elo',resources:'Resources',stats:'Stats',rules:'Rules & resources','my-runs':'My submissions'};
   const crumbs=[{label:'Yoshi’s Island',href:'#leaderboard'},{label:sectionNames[state.page],href:`#${state.page}`}];
   if(state.page==='levels'){const level=levels.find(level=>level.slug===state.level);crumbs.push({label:`World ${level.world}`,href:`#levels/${level.world}`},{label:`${level.slug}: ${level.name}`});}
   if(state.page==='worlds')crumbs.push({label:currentCategory().name});
   if(state.page==='leaderboard')crumbs.push({label:currentCategory().name});
   document.querySelector('#breadcrumbs').innerHTML=crumbs.map((crumb,index)=>`<li>${index?'<span class="breadcrumb-separator" aria-hidden="true">/</span>':''}${index===crumbs.length-1?`<strong aria-current="page">${escapeHtml(crumb.label)}</strong>`:`<a href="${crumb.href}">${escapeHtml(crumb.label)}</a>`}</li>`).join('');
-  document.querySelectorAll('[data-page]').forEach(link=>{const active=link.dataset.page===state.page||(link.dataset.page==='leaderboard'&&['levels','worlds','rules'].includes(state.page));link.classList.toggle('active',active);active?link.setAttribute('aria-current','page'):link.removeAttribute('aria-current');});
+  document.querySelectorAll('[data-page]').forEach(link=>{const active=link.dataset.page===state.page||(link.dataset.page==='leaderboard'&&['levels','level-overview','worlds','rules'].includes(state.page));link.classList.toggle('active',active);active?link.setAttribute('aria-current','page'):link.removeAttribute('aria-current');});
   const categoryNav=document.querySelector('#category-nav');
   if(!categoryNav.innerHTML)categoryNav.innerHTML='<h2 class="category-section-label">Main Categories</h2>'+groupedCategories(cat=>`<a href="#leaderboard/${cat.slug}">${cat.label}</a>`,new Set())+'<h2 class="category-section-label category-section-divider">Category Extension</h2>'+levelNavigation(new Set())+worldNavigation();
-  categoryNav.querySelectorAll('summary').forEach(summary=>summary.classList.toggle('selected',summary.parentElement.dataset.group===(state.page==='worlds'?'worlds':state.page==='levels'?'levels':state.page==='leaderboard'?currentCategory().group:null)));
+  categoryNav.querySelectorAll('summary').forEach(summary=>summary.classList.toggle('selected',summary.parentElement.dataset.group===(state.page==='worlds'?'worlds':['levels','level-overview'].includes(state.page)?'levels':state.page==='leaderboard'?currentCategory().group:null)));
   categoryNav.querySelectorAll('a').forEach(link=>{
     const worldLink=link.getAttribute('href').match(/^#worlds\/([^/?]+)\//);
     if(worldLink)link.setAttribute('href',`#worlds/${worldLink[1]}/${state.worldCategory}${platformQuery()}`);
-    const active=(state.page==='worlds'&&worldLink?.[1]===state.world)||state.page==='leaderboard'&&link.getAttribute('href').split('?')[0]===`#leaderboard/${state.category}`;
+    const active=(state.page==='level-overview'&&link.hasAttribute('data-level-overview'))||(state.page==='worlds'&&worldLink?.[1]===state.world)||state.page==='leaderboard'&&link.getAttribute('href').split('?')[0]===`#leaderboard/${state.category}`;
     link.classList.toggle('selected',active);
     active?link.setAttribute('aria-current','page'):link.removeAttribute('aria-current');
+    if(link.hasAttribute('data-level-overview'))link.setAttribute('href',levelOverviewHref());
     if(link.getAttribute('href').startsWith('#leaderboard/')||link.getAttribute('href')==='#levels'||link.getAttribute('href').startsWith('#levels?'))link.setAttribute('href',link.getAttribute('href').split('?')[0]+platformQuery());
     const world=link.getAttribute('href').match(/^#levels\/(\d+)\//)?.[1];
     if(world)link.setAttribute('href',`#levels/${world}/${world}-1/${state.levelCategory}${platformQuery()}`);
@@ -46,6 +47,7 @@ function render(){
   document.querySelector('#account-button').textContent=saved.viewer?`${saved.viewer}`:'Sign in';
   if(state.page==='home')renderHome();
   else if(state.page==='leaderboard'||state.page==='levels'||state.page==='worlds')renderLeaderboard();
+  else if(state.page==='level-overview')renderLevelOverview();
   else if(state.page==='runners')renderRunners();
   else if(state.page==='elo')renderElo();
   else if(state.page==='resources')renderResources();
@@ -54,7 +56,7 @@ function render(){
   else renderMyRuns();
 }
 function levelNavigation(openGroups){
-  return `<details class="category-group individual-level-group" data-group="levels" ${openGroups.has('levels')?'open':''}><summary class="category-group-label ${state.page==='levels'?'selected':''}">Individual Levels</summary><div class="category-group-items"><a href="#levels">All levels</a>${Array.from({length:6},(_,i)=>i+1).map(world=>`<a href="#levels/${world}/${world}-1/${state.levelCategory}${platformQuery()}">World ${world}</a>`).join('')}</div></details>`;
+  return `<details class="category-group individual-level-group" data-group="levels" ${openGroups.has('levels')?'open':''}><summary class="category-group-label ${['levels','level-overview'].includes(state.page)?'selected':''}">Individual Levels</summary><div class="category-group-items"><a href="${levelOverviewHref()}" data-level-overview>Overview</a><a href="#levels">All levels</a>${Array.from({length:6},(_,i)=>i+1).map(world=>`<a href="#levels/${world}/${world}-1/${state.levelCategory}${platformQuery()}">World ${world}</a>`).join('')}</div></details>`;
 }
 function worldNavigation(){
   return `<details class="category-group individual-world-group" data-group="worlds"><summary class="category-group-label">Individual Worlds</summary><div class="category-group-items">${worlds.map(world=>`<a href="#worlds/${world.slug}/${state.worldCategory}${platformQuery()}">${world.name}</a>`).join('')}</div></details>`;
@@ -63,8 +65,55 @@ function worldSelector(board,stats=false){
   const href=(world,mode)=>stats?`#stats/iw-${world}-${mode}${platformQuery()}`:`#worlds/${world}/${mode}${platformQuery()}`;
   return `<div class="board-header"><div class="category-tabs" role="group" aria-label="World">${worlds.map(world=>`<a href="${href(world.slug,board.mode)}" class="${world.slug===board.world?'active':''}" ${world.slug===board.world?'aria-current="true"':''}>${world.name}</a>`).join('')}</div>${stats?'':boardActions(board)}</div><div class="board-filters"><div class="run-type-selector"><span class="filter-label">Run Type</span><div class="subcategory-tabs" role="group" aria-label="World category">${worldCategories.map(category=>`<a href="${href(board.world,category.slug)}" class="${category.slug===board.mode?'active':''}" ${category.slug===board.mode?'aria-current="true"':''}>${category.name}</a>`).join('')}</div></div>${stats?'':platformSelector()}</div>`;
 }
-function leaderboardNavigation(){
-  return `<nav class="leaderboard-navigation" aria-label="Leaderboard navigation">${[{page:'leaderboard',label:'Full game',href:`#leaderboard/${state.category}${platformQuery()}`},{page:'levels',label:'Individual levels',href:`#levels/${levels.find(level=>level.slug===state.level).world}/${state.level}/${state.levelCategory}${platformQuery()}`},{page:'worlds',label:'Individual worlds',href:`#worlds/${state.world}/${state.worldCategory}${platformQuery()}`}].map(item=>`<a href="${item.href}" class="${state.page===item.page?'active':''}" ${state.page===item.page?'aria-current="page"':''}>${item.label}</a>`).join('')}</nav>`;
+function levelOverviewHref(){
+  const params=new URLSearchParams({mode:state.levelCategory,runner:state.overviewRunner||saved.viewer||currentEloRecommendationRunner()});
+  if(state.platform==='vc')params.set('platform','vc');
+  return `#level-overview?${params.toString()}`;
+}
+function runnerPickerMarkup(runner){
+  return `<div class="runner-picker"><label for="overview-runner">Runner</label><input id="overview-runner" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="overview-runner-options" value="${escapeHtml(runner)}" placeholder="Search runners" autocomplete="off"><div id="overview-runner-options" class="runner-suggestions" role="listbox" aria-label="Runners" hidden></div></div>`;
+}
+function setupRunnerPicker(names,runner){
+  const input=document.querySelector('#overview-runner');
+  const list=document.querySelector('#overview-runner-options');
+  let matches=[],active=-1,lastQuery='';
+  input.value=runner;
+  function close(){list.hidden=true;input.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');active=-1;}
+  function draw(query=lastQuery){
+    lastQuery=query;
+    matches=names.filter(name=>name.toLowerCase().includes(query.trim().toLowerCase()));
+    list.innerHTML=matches.length?matches.map((name,index)=>`<div id="runner-option-${index}" role="option" aria-selected="${index===active}" data-runner-index="${index}">${escapeHtml(name)}</div>`).join(''):'<div class="runner-no-results" role="status">No matching runners</div>';
+    list.hidden=false;input.setAttribute('aria-expanded','true');
+    if(active>=0){input.setAttribute('aria-activedescendant',`runner-option-${active}`);document.querySelector(`#runner-option-${active}`)?.scrollIntoView?.({block:'nearest'});}
+    else input.removeAttribute('aria-activedescendant');
+  }
+  function choose(name){if(!name)return;input.value=name;close();state.overviewRunner=name;location.hash=levelOverviewHref();}
+  input.addEventListener('focus',()=>{active=-1;draw('');});
+  input.addEventListener('input',()=>{active=-1;draw(input.value);});
+  input.addEventListener('blur',()=>{input.value=state.overviewRunner||runner;close();});
+  input.addEventListener('keydown',event=>{
+    if(event.key==='Escape'){event.preventDefault();input.value=state.overviewRunner||runner;close();return;}
+    if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+      event.preventDefault();if(list.hidden){active=-1;draw(input.value);}
+      if(matches.length){active=event.key==='ArrowDown'?(active+1)%matches.length:(active<=0?matches.length-1:active-1);draw();}
+    }else if(event.key==='Enter'){
+      event.preventDefault();choose(active>=0?matches[active]:names.find(name=>name.toLowerCase()===input.value.trim().toLowerCase()));
+    }
+  });
+  list.addEventListener('pointerdown',event=>event.preventDefault());
+  list.addEventListener('click',event=>{const option=event.target.closest('[data-runner-index]');if(option)choose(matches[Number(option.dataset.runnerIndex)]);});
+}
+function renderLevelOverview(){
+  const runs=allRuns();
+  const runner=state.overviewRunner||saved.viewer||currentEloRecommendationRunner();
+  const names=[...new Set([runner,...runs.map(run=>run.runner)])].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  const entries=individualLevelOverview(runs,levels,runner,state.levelCategory,state.platform);
+  const completed=entries.filter(entry=>entry.pb).length;
+  main.innerHTML=`<div class="page-heading"><div><h2>Individual-level overview</h2></div></div>
+    <section class="board level-overview-controls" aria-label="Overview filters"><div class="profile-filters">${runnerPickerMarkup(runner)}<label>Category<select id="overview-mode">${levelCategories.map(category=>`<option value="${category.slug}" ${category.slug===state.levelCategory?'selected':''}>${category.name}</option>`).join('')}</select></label>${platformSelector()}</div><div class="level-overview-summary"><span><strong>${completed} / ${levels.length}</strong> stages with a PB</span><span><strong>${levels.length-completed}</strong> without a PB</span><span><strong>${entries.filter(entry=>entry.pb?.rank===1).length}</strong> world records</span></div></section>
+    <div class="level-overview-worlds">${Array.from({length:6},(_,index)=>index+1).map(world=>`<section class="level-overview-world" aria-labelledby="overview-world-${world}"><div class="level-overview-world-heading"><h3 id="overview-world-${world}">World ${world}</h3><span>${entries.filter(entry=>entry.level.world===world&&entry.pb).length} / 9 PBs</span></div><div class="level-overview-grid">${entries.filter(entry=>entry.level.world===world).map(({level,pb,record,gapMs})=>`<a class="level-overview-stage ${pb?'has-pb':'missing-pb'} ${pb?.rank===1?'level-overview-record':''}" href="#levels/${world}/${level.slug}/${state.levelCategory}${platformQuery()}"><div class="level-overview-stage-heading"><strong>${level.slug}</strong><span>${pb?`Rank #${pb.rank}`:'No verified PB'}</span></div><h4>${escapeHtml(level.name)}</h4><dl><div><dt>PB</dt><dd class="timing-value">${pb?formatTime(pb.timeMs):'—'}</dd></div><div><dt>Gap to WR</dt><dd class="timing-value">${gapMs===null?'—':gapMs===0?'WR':`+${formatTime(gapMs)}`}</dd></div><div><dt>WR</dt><dd class="timing-value">${record?formatTime(record.timeMs):'—'}</dd></div></dl></a>`).join('')}</div></section>`).join('')}</div>`;
+  setupRunnerPicker(names,runner);
+  document.querySelector('#overview-mode').addEventListener('change',event=>{state.levelCategory=event.target.value;location.hash=levelOverviewHref();});
 }
 function levelSelector(board){
   const level=levels.find(level=>level.slug===board.level);
@@ -102,7 +151,7 @@ function renderSubmissionBoardFields(){
 function renderLeaderboard(){
   const cat=currentCategory();const board=bestRuns(cat.slug);
   const rows=board.map(run=>`<tr class="${run.rank===1?'record':''}" data-run-row="${escapeHtml(run.id)}"><td><span class="rank ${run.rank===1?'first':''}">${run.rank}</span></td><td>${profileButton(run.runner)}</td><td><button class="time-button timing-value" data-run="${run.id}">${formatTime(run.timeMs)}</button></td><td class="platform-col"><span class="platform">${run.platform}</span></td><td class="region-col"><span class="region">${run.region}</span></td><td><span class="run-date">${dateLabel(run.date)}</span></td></tr>`).join('');
-  main.innerHTML=`${leaderboardNavigation()}<div class="page-heading"><div><h2>${state.page==='worlds'?'Individual worlds':state.page==='levels'?'Individual levels':'Leaderboards'}</h2></div></div>
+  main.innerHTML=`<div class="page-heading"><div><h2>${state.page==='worlds'?'Individual worlds':state.page==='levels'?'Individual levels':'Leaderboards'}</h2></div></div>
   <div class="layout"><section class="board" aria-label="${cat.name} leaderboard">${state.page==='worlds'?worldSelector(cat):state.page==='levels'?levelSelector(cat):categorySelector(cat)}
   <div class="table-wrap"><table class="leaderboard-table"><colgroup><col class="rank-column"><col class="runner-column"><col class="time-column"><col class="platform-column"><col class="region-column"><col class="date-column"></colgroup><thead><tr><th scope="col">RANK</th><th scope="col">RUNNER</th><th scope="col">TIME</th><th scope="col" class="platform-col">PLATFORM</th><th scope="col" class="region-col">REGION</th><th scope="col">DATE</th></tr></thead><tbody>${rows}</tbody></table>${!board.length?'<div class="empty"><h3>No verified runs yet</h3></div>':''}</div>
   </section>
@@ -446,7 +495,7 @@ let toastTimer;function toast(message){const element=document.querySelector('#to
 document.addEventListener('click',event=>{const boardLink=event.target.closest('a[data-run-board]');if(boardLink){modal.close();state.region='all';state.search='';if(location.hash===boardLink.getAttribute('href'))route();return;}const target=event.target.closest('button');if(!target){const profileRow=event.target.closest('[data-profile-row]');if(profileRow){profile(profileRow.dataset.profileRow);return;}const row=event.target.closest('[data-run-row]');if(row)runDetails(row.dataset.runRow);return;}
   if(target.hasAttribute('data-close'))modal.close();
   else if(target.hasAttribute('data-submit'))submitForm();
-  else if(target.dataset.platform){state.platform=target.dataset.platform;const base=state.page==='stats'?`stats/${state.statsBoard}`:state.page==='worlds'?`worlds/${state.world}/${state.worldCategory}`:state.page==='levels'?`levels/${currentCategory().world}/${state.level}/${state.levelCategory}`:`leaderboard/${state.category}`;location.hash=base+`?platform=${state.platform}`;render();}
+  else if(target.dataset.platform){state.platform=target.dataset.platform;if(state.page==='level-overview'){location.hash=levelOverviewHref();render();return;}const base=state.page==='stats'?`stats/${state.statsBoard}`:state.page==='worlds'?`worlds/${state.world}/${state.worldCategory}`:state.page==='levels'?`levels/${currentCategory().world}/${state.level}/${state.levelCategory}`:`leaderboard/${state.category}`;location.hash=base+`?platform=${state.platform}`;render();}
   else if(target.dataset.category){state.category=target.dataset.category;state.region='all';state.search='';state.page='leaderboard';modal.close();location.hash=`leaderboard/${state.category}${platformQuery()}`;render();}
   else if(target.hasAttribute('data-profile-return'))profile(profileState.name,true);
   else if(target.dataset.profile)profile(target.dataset.profile);
@@ -536,8 +585,13 @@ function route(){
   const previousPage=state.page;
   const [path,query='']=location.hash.slice(1).split('?');
   const [page,category,levelSlug,mode]=path.split('/');
-  if(['leaderboard','levels','worlds','stats'].includes(page))state.platform=new URLSearchParams(query).get('platform')==='vc'?'vc':'snes';
-  state.page=['leaderboard','levels','worlds','runners','elo','resources','stats','rules','my-runs'].includes(page)?page:'leaderboard';
+  if(['leaderboard','levels','worlds','level-overview','stats'].includes(page))state.platform=new URLSearchParams(query).get('platform')==='vc'?'vc':'snes';
+  state.page=['leaderboard','levels','worlds','level-overview','runners','elo','resources','stats','rules','my-runs'].includes(page)?page:'leaderboard';
+  if(state.page==='level-overview'){
+    const params=new URLSearchParams(query);
+    state.overviewRunner=params.get('runner')||saved.viewer||currentEloRecommendationRunner();
+    state.levelCategory=params.get('mode')==='100'?'100':'any';
+  }
   if(state.page==='stats'&&boards.some(board=>board.slug===category))state.statsBoard=category;
   if(state.page==='worlds'){
     state.world=worlds.some(world=>world.slug===category)?category:state.world;

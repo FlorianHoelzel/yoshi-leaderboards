@@ -6,6 +6,14 @@ function rankedRuns(runs,category,region='all',platform='snes'){
   const seen=new Set();let previous=null,rank=0;
   return sorted.filter(r=>{if(seen.has(r.runner))return false;seen.add(r.runner);return true;}).map((r,i)=>{if(r.timeMs!==previous)rank=i+1;previous=r.timeMs;return {...r,rank};});
 }
+function individualLevelOverview(runs,levelDefinitions,runner,mode='any',platform='snes'){
+  return levelDefinitions.map(level=>{
+    const board=rankedRuns(runs,`il-${level.slug}-${mode}`,'all',platform);
+    const pb=board.find(run=>run.runner===runner)||null;
+    const record=board[0]||null;
+    return {level,pb,record,gapMs:pb&&record?pb.timeMs-record.timeMs:null};
+  });
+}
 function runStats(runs,levelBoardDefinitions,worldBoardDefinitions){
   const verified=runs.filter(run=>run.status==='verified');
   const levelSlugs=new Set(levelBoardDefinitions.map(board=>board.slug));
